@@ -252,7 +252,8 @@ app.get('/api/fetch', (req, res) => {
 });
 
 app.get('/api/data/:ip.json', (req, res) => {
-  const ip = req.params.ip;
+  // Convert underscores back to dots (frontend sends 107_89_240_97, store has 107.89.240.97)
+  const ip = req.params.ip.replace(/_/g, '.');
   const data = dataStore.get(ip);
   if (!data) {
     return res.json({ error: 'No data for this site. Run /api/fetch first.' });
