@@ -4,9 +4,8 @@ const RENDER_BACKEND = process.env.RENDER_BACKEND_URL || 'http://localhost:3001'
 
 export async function GET() {
   try {
-    const res = await fetch(`${RENDER_BACKEND}/api/fetch`, { 
-      method: 'POST',
-      signal: AbortSignal.timeout(10000) // 10s timeout
+    const res = await fetch(`${RENDER_BACKEND}/api/fetch`, {
+      signal: AbortSignal.timeout(10000)
     });
     
     if (!res.ok) {

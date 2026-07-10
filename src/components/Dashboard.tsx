@@ -104,8 +104,7 @@ export default function Dashboard() {
     setError(null);
     try {
       // Start fetch (returns immediately)
-      const res = await fetch('/api/fetch', { 
-        method: 'POST',
+      const res = await fetch('/api/fetch', {
         signal: AbortSignal.timeout(15000)
       });
       
