@@ -48,6 +48,16 @@ export default function TimeSeriesChart({ data, sensorKeys, title, timeRange }: 
 
     // Group points by sensor-key combo so each DAQM's measurement gets its own line
     const sensorKeyPoints: Record<string, { x: number; y: number }[]> = {};
+    
+    // Map sensor IDs to DAQM-0, DAQM-1, etc.
+    const sensorMap = new Map<string, string>();
+    let daqmIndex = 0;
+    const getDaqmLabel = (sensorId: string) => {
+      if (!sensorMap.has(sensorId)) {
+        sensorMap.set(sensorId, `DAQM-${daqmIndex++}`);
+      }
+      return sensorMap.get(sensorId)!;
+    };
 
     for (const point of data) {
       for (const r of point.readings) {
@@ -65,9 +75,10 @@ export default function TimeSeriesChart({ data, sensorKeys, title, timeRange }: 
 
     const datasets = Object.entries(sensorKeyPoints).map(([groupKey, points], i) => {
       const [sensor, key] = groupKey.split('-');
+      const daqmLabel = getDaqmLabel(sensor);
       const colors = SENSOR_COLORS[i % SENSOR_COLORS.length];
       return {
-        label: `${KEY_NAMES[key] || key} (DAQM ${sensor})`,
+        label: `${KEY_NAMES[key] || key} (${daqmLabel})`,
         data: points.sort((a, b) => a.x - b.x),
         borderColor: colors,
         borderWidth: 1.5,
