@@ -63,7 +63,8 @@ export default function Dashboard() {
       }
       
       const json = JSON.parse(text);
-      setData(json.data || []);
+      // Backend returns array directly, not {data: [...]}
+      setData(Array.isArray(json) ? json : json.data || []);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setError(msg);
