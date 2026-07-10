@@ -12,6 +12,7 @@ export interface SensorGroupSetting {
 export interface Settings {
   sensorGroups: SensorGroupSetting[];
   generatedAt: string;
+  numClasses: number;
 }
 
 export const SETTINGS: Settings = {
