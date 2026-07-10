@@ -17,13 +17,15 @@ export async function GET(
     // Convert underscores back to dots for Render backend
     const renderIp = ipFile.replace(/_/g, '.');
     const backendUrl = `${RENDER_BACKEND}/api/data/${renderIp}.json`;
-    console.log(`[DEBUG] Proxying to: ${backendUrl}`);
+    console.log(`[VercelData] RENDER_BACKEND=${RENDER_BACKEND}`);
+    console.log(`[VercelData] Proxying to: ${backendUrl}`);
     
     const res = await fetch(backendUrl, {
       signal: AbortSignal.timeout(10000)
     });
     
-    console.log(`[DEBUG] Backend response: ${res.status} ${res.statusText}`);
+    console.log(`[VercelData] Backend status: ${res.status} ${res.statusText}`);
+    console.log(`[VercelData] Backend headers: ${res.headers.get('content-type')}`);
     
     if (!res.ok) {
       const text = await res.text();
@@ -34,12 +36,15 @@ export async function GET(
     const contentType = res.headers.get('content-type');
     const text = await res.text();
     
+    console.log(`[VercelData] Backend body length: ${text.length}`);
+    console.log(`[VercelData] Backend body start: ${text.substring(0, 100)}`);
+    
     if (!contentType || !contentType.includes('application/json')) {
-      console.error('[DEBUG] Backend returned non-JSON:', text.substring(0, 200));
+      console.error('[VercelData] Backend returned non-JSON');
       return NextResponse.json({ error: 'Backend returned invalid response' }, { status: 502 });
     }
     
-    console.log(`[DEBUG] Returning ${text.length} bytes`);
+    console.log(`[VercelData] Returning ${text.length} bytes`);
     return new Response(text, {
       headers: { 'Content-Type': 'application/json' }
     });
