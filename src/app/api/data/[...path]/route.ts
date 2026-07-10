@@ -14,7 +14,9 @@ export async function GET(
   }
 
   try {
-    const res = await fetch(`${RENDER_BACKEND}/api/data/${ipFile}`, {
+    // Convert underscores back to dots for Render backend
+    const renderIp = ipFile.replace(/_/g, '.');
+    const res = await fetch(`${RENDER_BACKEND}/api/data/${renderIp}.json`, {
       signal: AbortSignal.timeout(10000)
     });
     
