@@ -41,30 +41,38 @@ export default function Dashboard() {
       .catch(() => setSites([]));
   }, [selectedIp]);
 
-  // Load data for selected site
+  // Load data for selected site (fetch in chunks)
   const loadData = useCallback(async () => {
     if (!selectedIp) return;
     setLoading(true);
     setError(null);
     try {
       const ipFile = selectedIp.replace(/\./g, '_');
-      const res = await fetch(`/api/data/${ipFile}.json`, {
-        signal: AbortSignal.timeout(15000)
-      });
+      const allData: SensorDataPoint[] = [];
+      let offset = 0;
+      const chunkSize = 500;
       
-      if (!res.ok) {
-        throw new Error(`Backend error: ${res.status}`);
+      while (true) {
+        const res = await fetch(`/api/data/${ipFile}.json?limit=${chunkSize}&offset=${offset}`, {
+          signal: AbortSignal.timeout(15000)
+        });
+        
+        if (!res.ok) {
+          throw new Error(`Backend error: ${res.status}`);
+        }
+        
+        const text = await res.text();
+        if (!text) break;
+        
+        const json = JSON.parse(text);
+        const chunk = Array.isArray(json) ? json : json.data || [];
+        allData.push(...chunk);
+        
+        if (chunk.length < chunkSize) break; // Last chunk
+        offset += chunkSize;
       }
       
-      const text = await res.text();
-      if (!text) {
-        setData([]);
-        return;
-      }
-      
-      const json = JSON.parse(text);
-      // Backend returns array directly, not {data: [...]}
-      setData(Array.isArray(json) ? json : json.data || []);
+      setData(allData);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setError(msg);
