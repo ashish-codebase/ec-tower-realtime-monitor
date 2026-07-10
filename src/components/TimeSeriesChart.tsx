@@ -17,16 +17,16 @@ export interface SensorDataPoint {
 }
 
 const KEY_NAMES: Record<string, string> = {
-  '22': 'WNV', '23': 'WNW', '24': 'WNZ',
-  '34': 'UST', '43': 'Ustar', '36': 'H',
-  '52': 'LE', '122': 'G', '45': 'Tair',
-  '116': 'T2m', '88': 'Tsoil1', '89': 'Tsoil2',
-  '115': 'CO2_flux', '117': 'wCO2', '119': 'wQ',
-  '54': 'Rn', '123': 'SW_down', '124': 'SW_up',
-  '125': 'LW_down', '127': 'LW_up', '128': 'VPD',
+  '14': 'Temp', '22': 'WNV', '23': 'WNW', '24': 'WNZ',
+  '34': 'UST', '36': 'H', '43': 'Ustar', '45': 'Tair',
+  '52': 'LE', '54': 'Rn', '61': 'Voltage', '63': 'Current',
+  '70': 'Resistivity', '72': 'Pressure', '79': 'Depth', '81': 'Level',
+  '88': 'Tsoil1', '89': 'Tsoil2', '115': 'CO2_flux',
+  '116': 'T2m', '117': 'wCO2', '118': 'RH', '119': 'wQ',
+  '120': 'Press', '121': 'PAR', '122': 'G', '123': 'SW_down',
+  '124': 'SW_up', '125': 'LW_down', '127': 'LW_up', '128': 'VPD',
   '129': 'Tair_129', '130': 'Press_130', '131': 'CO2_dens',
-  '132': 'H2O_dens', '121': 'PAR', '210': 'WindSpd',
-  '211': 'WindDir', '118': 'RH', '120': 'Press',
+  '132': 'H2O_dens', '210': 'WindSpd', '211': 'WindDir',
 };
 
 const SENSOR_COLORS = [
