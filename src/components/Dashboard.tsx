@@ -50,7 +50,7 @@ export default function Dashboard() {
       const ipFile = selectedIp.replace(/\./g, '_');
       const allData: SensorDataPoint[] = [];
       let offset = 0;
-      const chunkSize = 500;
+      const chunkSize = 2; // Vercel free tier timeout limit
       
       while (true) {
         const res = await fetch(`/api/data/${ipFile}.json?limit=${chunkSize}&offset=${offset}`, {
