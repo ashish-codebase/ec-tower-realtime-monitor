@@ -40,7 +40,7 @@ function loadSites() {
 
 // TCP fetcher (same logic as src/lib/tcp.ts)
 const PORT_TOWER = 50311;
-const TOTAL_TIMEOUT_MS = 30000;
+const TOTAL_TIMEOUT_MS = 60000; // 60s - towers take time to respond
 
 function fetchTowerData(ip) {
   return new Promise((resolve, reject) => {
