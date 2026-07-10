@@ -189,9 +189,10 @@ app.post('/api/fetch', async (req, res) => {
     sites.map(async (site) => {
       try {
         const data = await fetchTowerData(site.ip);
-        // Append to existing data instead of overwriting
+        // Append to existing data, cap at 2880 points (24h at 5min intervals)
         const existing = dataStore.get(site.ip) || [];
-        dataStore.set(site.ip, [...existing, ...data]);
+        const combined = [...existing, ...data].slice(-2880);
+        dataStore.set(site.ip, combined);
         if (site.name === 'Cora' || site.name === 'Baggs') {
           console.log(`[DEBUG] ${site.name}: ${data.length} new points, ${dataStore.get(site.ip).length} total`);
         }
