@@ -189,9 +189,11 @@ app.post('/api/fetch', async (req, res) => {
     sites.map(async (site) => {
       try {
         const data = await fetchTowerData(site.ip);
-        dataStore.set(site.ip, data);
+        // Append to existing data instead of overwriting
+        const existing = dataStore.get(site.ip) || [];
+        dataStore.set(site.ip, [...existing, ...data]);
         if (site.name === 'Cora' || site.name === 'Baggs') {
-          console.log(`[DEBUG] ${site.name}: ${data.length} points, first: ${JSON.stringify(data[0]).substring(0, 200)}`);
+          console.log(`[DEBUG] ${site.name}: ${data.length} new points, ${dataStore.get(site.ip).length} total`);
         }
         return { name: site.name, ip: site.ip, status: 'ok', count: data.length };
       } catch (err) {
