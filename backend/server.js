@@ -214,9 +214,38 @@ app.post('/api/fetch', async (req, res) => {
   });
 });
 
-// Also handle GET for compatibility
+// Handle GET - same as POST for fetch trigger
 app.get('/api/fetch', (req, res) => {
-  res.json({ message: 'Use POST method', status: 'error' });
+  if (fetchInProgress) {
+    return res.json({ message: 'Fetch already in progress', status: 'running' });
+  }
+
+  fetchInProgress = true;
+  console.log('[API] GET /api/fetch triggered');
+
+  const sites = loadSites();
+
+  Promise.allSettled(
+    sites.map(async (site) => {
+      try {
+        const data = await fetchTowerData(site.ip);
+        dataStore.set(site.ip, data);
+        return { name: site.name, ip: site.ip, status: 'ok', count: data.length };
+      } catch (err) {
+        return { name: site.name, ip: site.ip, status: 'error', error: err.message, count: 0 };
+      }
+    })
+  ).then(results => {
+    fetchInProgress = false;
+    const ok = results.filter(r => r.status === 'fulfilled' && r.value.status === 'ok').length;
+    const fail = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && r.value.status === 'error')).length;
+    console.log(`[API] Fetch complete: ${ok} ok, ${fail} failed`);
+  }).catch(err => {
+    fetchInProgress = false;
+    console.error('[API] Fetch error:', err.message);
+  });
+
+  res.json({ message: 'Fetch started', status: 'running' });
 });
 
 app.get('/api/data/:ip.json', (req, res) => {
