@@ -182,11 +182,12 @@ export default function Dashboard() {
   const clusterGroups = useMemo(() => {
     const groups = getSensorGroups();
     const clusters = new Map<number, { name: string; keys: string[] }>();
+    const siteName = selectedSite?.name || 'Site';
     
     groups.forEach((g) => {
       if (!clusters.has(g.jenksClass)) {
         clusters.set(g.jenksClass, {
-          name: selectedSite?.name || 'Site',
+          name: siteName,
           keys: [],
         });
       }
@@ -194,7 +195,7 @@ export default function Dashboard() {
     });
     
     return Array.from(clusters.values());
-  }, []);
+  }, [selectedSite]);
   
   // Filter clusters to only those with data
   const activeClusters = clusterGroups.filter((c) =>
