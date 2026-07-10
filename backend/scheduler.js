@@ -1,4 +1,4 @@
-const INTERVAL_MS = 30000; // 30 seconds
+const INTERVAL_MS = 300000; // 5 minutes
 
 let intervalId = null;
 let lastFetchTime = null;
