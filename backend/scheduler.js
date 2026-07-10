@@ -11,7 +11,10 @@ async function fetchAll(sites, fetchTowerData, dataStore) {
     sites.map(async (site) => {
       try {
         const data = await fetchTowerData(site.ip);
-        dataStore.set(site.ip, data);
+        // Append to existing data instead of overwriting (cap at 1000 points)
+        const existing = dataStore.get(site.ip) || [];
+        const combined = [...existing, ...data].slice(-1000);
+        dataStore.set(site.ip, combined);
         return { name: site.name, ip: site.ip, status: 'ok', count: data.length };
       } catch (err) {
         return { name: site.name, ip: site.ip, status: 'error', error: err.message, count: 0 };
