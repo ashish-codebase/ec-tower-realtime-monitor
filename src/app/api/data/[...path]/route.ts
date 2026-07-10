@@ -17,10 +17,13 @@ export async function GET(
     // Convert underscores back to dots for Render backend
     // ipFile is like "107_89_240_97.json", need "107.89.240.97.json"
     const renderPath = ipFile.replace(/_/g, '.');
-    const backendUrl = `${RENDER_BACKEND}/api/data/${renderPath}`;
-    console.log(`[VercelData] RENDER_BACKEND=${RENDER_BACKEND}`);
-    console.log(`[VercelData] Proxying to: ${backendUrl}`);
-    console.log(`[VercelData] RENDER_BACKEND=${RENDER_BACKEND}`);
+    
+    // Forward query params from request to Render
+    const searchParams = _request.nextUrl.searchParams;
+    const limit = searchParams.get('limit') || '1000';
+    const offset = searchParams.get('offset') || '0';
+    const backendUrl = `${RENDER_BACKEND}/api/data/${renderPath}?limit=${limit}&offset=${offset}`;
+    
     console.log(`[VercelData] Proxying to: ${backendUrl}`);
     
     const res = await fetch(backendUrl, {
