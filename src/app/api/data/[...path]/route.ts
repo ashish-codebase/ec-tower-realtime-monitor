@@ -13,15 +13,11 @@ export async function GET(
     return NextResponse.json({ error: 'No data file specified' }, { status: 400 });
   }
 
-  // Force env var check
-  if (!RENDER_BACKEND || RENDER_BACKEND === 'http://localhost:3001') {
-    throw new Error(`RENDER_BACKEND_URL not set! Current: ${RENDER_BACKEND}`);
-  }
-
   try {
     // Convert underscores back to dots for Render backend
-    const renderIp = ipFile.replace(/_/g, '.');
-    const backendUrl = `${RENDER_BACKEND}/api/data/${renderIp}.json`;
+    // ipFile is like "107_89_240_97.json", need "107.89.240.97.json"
+    const renderPath = ipFile.replace(/_/g, '.');
+    const backendUrl = `${RENDER_BACKEND}/api/data/${renderPath}`;
     console.log(`[VercelData] RENDER_BACKEND=${RENDER_BACKEND}`);
     console.log(`[VercelData] Proxying to: ${backendUrl}`);
     
