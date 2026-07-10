@@ -21,6 +21,26 @@ app.options('*', (req, res) => {
 
 // In-memory data store: { ip: SensorDataPoint[] }
 const dataStore = new Map();
+const DATA_DIR = path.join(__dirname, 'data');
+
+// Save data to JSON file
+function saveData(ip, data) {
+  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+  const filePath = path.join(DATA_DIR, `${ip}.json`);
+  fs.writeFileSync(filePath, JSON.stringify(data));
+}
+
+// Load data from JSON file
+function loadData(ip) {
+  const filePath = path.join(DATA_DIR, `${ip}.json`);
+  if (!fs.existsSync(filePath)) return null;
+  try {
+    const content = fs.readFileSync(filePath, 'utf-8');
+    return JSON.parse(content);
+  } catch (err) {
+    return null;
+  }
+}
 
 // Load site config
 function loadSites() {
@@ -193,6 +213,7 @@ app.post('/api/fetch', async (req, res) => {
         const existing = dataStore.get(site.ip) || [];
         const combined = [...existing, ...data].slice(-2880);
         dataStore.set(site.ip, combined);
+        saveData(site.ip, combined); // Persist to disk
         if (site.name === 'Cora' || site.name === 'Baggs') {
           console.log(`[DEBUG] ${site.name}: ${data.length} new points, ${dataStore.get(site.ip).length} total`);
         }
@@ -236,6 +257,7 @@ app.get('/api/fetch', (req, res) => {
       try {
         const data = await fetchTowerData(site.ip);
         dataStore.set(site.ip, data);
+        saveData(site.ip, data); // Persist to disk
         return { name: site.name, ip: site.ip, status: 'ok', count: data.length };
       } catch (err) {
         return { name: site.name, ip: site.ip, status: 'error', error: err.message, count: 0 };
@@ -285,8 +307,18 @@ app.get('/api/status', (req, res) => {
   });
 });
 
-// Start scheduler (fetches every 30 seconds)
-scheduler.start(loadSites, fetchTowerData, dataStore);
+// Load existing data from disk
+const sites = loadSites();
+sites.forEach(site => {
+  const saved = loadData(site.ip);
+  if (saved) {
+    dataStore.set(site.ip, saved.slice(-2880)); // Cap at 2880
+    console.log(`[Init] Loaded ${saved.length} points for ${site.name}`);
+  }
+});
+
+// Start scheduler (fetches every 5 minutes)
+scheduler.start(loadSites, fetchTowerData, dataStore, saveData);
 
 app.listen(PORT, () => {
   console.log(`EC Tower backend running on port ${PORT}`);
