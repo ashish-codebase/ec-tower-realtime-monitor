@@ -261,7 +261,13 @@ app.get('/api/data/:ip.json', (req, res) => {
   if (!data) {
     return res.json({ error: 'No data for this site. Run /api/fetch first.' });
   }
-  res.json(data);
+  
+  // Support pagination via query params: ?limit=500&offset=0
+  const limit = parseInt(req.query.limit) || data.length;
+  const offset = parseInt(req.query.offset) || 0;
+  const paginated = data.slice(offset, offset + limit);
+  
+  res.json(paginated);
 });
 
 app.get('/api/status', (req, res) => {
