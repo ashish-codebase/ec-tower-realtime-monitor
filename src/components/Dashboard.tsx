@@ -19,6 +19,7 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(false);
+  const [lastFetchTime, setLastFetchTime] = useState<Date | null>(null);
   const [timeRange, setTimeRange] = useState<[number, number] | null>(null);
 
   // Load sites
@@ -73,6 +74,7 @@ export default function Dashboard() {
       }
       
       setData(allData);
+      setLastFetchTime(new Date());
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setError(msg);
@@ -239,7 +241,14 @@ export default function Dashboard() {
         >
           {fetching ? '⏳ Fetching (polling)...' : loading ? 'Loading...' : '🔄 Fetch Now'}
         </button>
-        <span className="text-xs text-gray-500 self-center">Auto-poll every 5 min</span>
+        <div className="flex flex-col gap-1">
+          <span className="text-xs text-gray-500 self-center">Auto-poll every 5 min</span>
+          {lastFetchTime && (
+            <span className="text-xs text-gray-400">
+              Last fetched: {lastFetchTime.toLocaleString()}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Time Range Slider - DISABLED */}
