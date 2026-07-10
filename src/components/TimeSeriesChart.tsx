@@ -63,7 +63,7 @@ export default function TimeSeriesChart({ data, sensorKeys, title, timeRange }: 
       for (const r of point.readings) {
         for (const key of sensorKeys) {
           if (key in r && !isNaN(r[key])) {
-            const groupKey = `${point.sensor}-${key}`;
+            const groupKey = `${point.sensor}|||${key}`;
             if (!sensorKeyPoints[groupKey]) {
               sensorKeyPoints[groupKey] = [];
             }
@@ -74,7 +74,7 @@ export default function TimeSeriesChart({ data, sensorKeys, title, timeRange }: 
     }
 
     const datasets = Object.entries(sensorKeyPoints).map(([groupKey, points], i) => {
-      const [sensor, key] = groupKey.split('-');
+      const [sensor, key] = groupKey.split('|||');
       const daqmLabel = getDaqmLabel(sensor);
       const colors = SENSOR_COLORS[i % SENSOR_COLORS.length];
       return {
