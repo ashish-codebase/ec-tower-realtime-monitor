@@ -190,6 +190,9 @@ app.post('/api/fetch', async (req, res) => {
       try {
         const data = await fetchTowerData(site.ip);
         dataStore.set(site.ip, data);
+        if (site.name === 'Cora' || site.name === 'Baggs') {
+          console.log(`[DEBUG] ${site.name}: ${data.length} points, first: ${JSON.stringify(data[0]).substring(0, 200)}`);
+        }
         return { name: site.name, ip: site.ip, status: 'ok', count: data.length };
       } catch (err) {
         return { name: site.name, ip: site.ip, status: 'error', error: err.message, count: 0 };
