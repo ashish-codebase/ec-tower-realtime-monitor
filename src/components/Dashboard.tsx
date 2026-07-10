@@ -186,7 +186,7 @@ export default function Dashboard() {
     groups.forEach((g) => {
       if (!clusters.has(g.jenksClass)) {
         clusters.set(g.jenksClass, {
-          name: `Cluster ${g.jenksClass + 1}`,
+          name: selectedSite?.name || 'Site',
           keys: [],
         });
       }
