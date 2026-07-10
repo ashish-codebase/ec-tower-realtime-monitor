@@ -91,6 +91,7 @@ export default function StatsTable({ data }: Props) {
           max: Math.max(...values),
           mean: values.reduce((a, b) => a + b, 0) / values.length,
           duration: `${durationMin} min`,
+          jenksClass: 0,
         };
       })
       .sort((a, b) => a.id - b.id);
