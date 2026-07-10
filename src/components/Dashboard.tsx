@@ -81,9 +81,15 @@ export default function Dashboard() {
     }
   }, [selectedIp]);
 
-  // Auto-poll every 5 minutes + load on mount/site change
+  // Load data when site changes
   useEffect(() => {
-    loadData();
+    if (selectedIp) {
+      loadData();
+    }
+  }, [selectedIp, loadData]);
+
+  // Auto-poll every 5 minutes
+  useEffect(() => {
     const interval = setInterval(loadData, POLL_MS);
     return () => clearInterval(interval);
   }, [loadData]);
