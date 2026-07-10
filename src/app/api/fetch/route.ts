@@ -4,10 +4,28 @@ const RENDER_BACKEND = process.env.RENDER_BACKEND_URL || 'http://localhost:3001'
 
 export async function GET() {
   try {
-    const res = await fetch(`${RENDER_BACKEND}/api/fetch`, { method: 'POST' });
-    if (!res.ok) throw new Error(`Backend error: ${res.status}`);
+    const res = await fetch(`${RENDER_BACKEND}/api/fetch`, { 
+      method: 'POST',
+      signal: AbortSignal.timeout(10000) // 10s timeout
+    });
+    
+    if (!res.ok) {
+      const text = await res.text();
+      console.error(`Backend error ${res.status}:`, text.substring(0, 200));
+      return NextResponse.json({ error: `Backend error: ${res.status}` }, { status: 502 });
+    }
+    
+    const contentType = res.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      const text = await res.text();
+      console.error('Backend returned non-JSON:', text.substring(0, 200));
+      return NextResponse.json({ error: 'Backend returned invalid response' }, { status: 502 });
+    }
+    
     return NextResponse.json(await res.json());
   } catch (err) {
-    return NextResponse.json({ error: 'Backend unavailable' }, { status: 502 });
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error('Fetch error:', msg);
+    return NextResponse.json({ error: `Backend unavailable: ${msg}` }, { status: 502 });
   }
 }
