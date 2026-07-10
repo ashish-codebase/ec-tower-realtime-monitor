@@ -23,14 +23,22 @@ export default function Dashboard() {
 
   // Load sites
   useEffect(() => {
-    fetch('/api/sites')
-      .then((r) => r.json())
+    fetch('/api/sites', { signal: AbortSignal.timeout(10000) })
+      .then((r) => {
+        if (!r.ok) throw new Error(`Sites error: ${r.status}`);
+        return r.text();
+      })
+      .then((text) => {
+        if (!text) return { sites: [] };
+        return JSON.parse(text);
+      })
       .then((json) => {
         setSites(json.sites || []);
         if (json.sites?.length && !selectedIp) {
           setSelectedIp(json.sites[0].ip);
         }
-      });
+      })
+      .catch(() => setSites([]));
   }, [selectedIp]);
 
   // Load data for selected site
@@ -40,8 +48,21 @@ export default function Dashboard() {
     setError(null);
     try {
       const ipFile = selectedIp.replace(/\./g, '_');
-      const res = await fetch(`/api/data/${ipFile}.json`);
-      const json = await res.json();
+      const res = await fetch(`/api/data/${ipFile}.json`, {
+        signal: AbortSignal.timeout(15000)
+      });
+      
+      if (!res.ok) {
+        throw new Error(`Backend error: ${res.status}`);
+      }
+      
+      const text = await res.text();
+      if (!text) {
+        setData([]);
+        return;
+      }
+      
+      const json = JSON.parse(text);
       setData(json.data || []);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -83,15 +104,41 @@ export default function Dashboard() {
     setError(null);
     try {
       // Start fetch (returns immediately)
-      const res = await fetch('/api/fetch', { method: 'POST' });
-      const json = await res.json();
+      const res = await fetch('/api/fetch', { 
+        method: 'POST',
+        signal: AbortSignal.timeout(15000)
+      });
+      
+      if (!res.ok) {
+        throw new Error(`Backend error: ${res.status}`);
+      }
+      
+      // Check if response is empty
+      const text = await res.text();
+      if (!text) {
+        throw new Error('Empty response from backend');
+      }
+      
+      const json = JSON.parse(text);
       
       if (json.status === 'running') {
         // Poll for completion
         const pollInterval = setInterval(async () => {
           try {
-            const statusRes = await fetch('/api/status');
-            const status = await statusRes.json();
+            const statusRes = await fetch('/api/status', {
+              signal: AbortSignal.timeout(10000)
+            });
+            
+            if (!statusRes.ok) {
+              throw new Error(`Status error: ${statusRes.status}`);
+            }
+            
+            const statusText = await statusRes.text();
+            if (!statusText) {
+              throw new Error('Empty status response');
+            }
+            
+            const status = JSON.parse(statusText);
             
             if (!status.fetchInProgress) {
               clearInterval(pollInterval);
