@@ -22,7 +22,7 @@ export async function GET(
     console.log(`[VercelData] Proxying to: ${backendUrl}`);
     
     const res = await fetch(backendUrl, {
-      signal: AbortSignal.timeout(10000)
+      signal: AbortSignal.timeout(30000) // 30s for large responses
     });
     
     console.log(`[VercelData] Backend status: ${res.status} ${res.statusText}`);
@@ -47,7 +47,10 @@ export async function GET(
     
     console.log(`[VercelData] Returning ${text.length} bytes`);
     return new Response(text, {
-      headers: { 'Content-Type': 'application/json' }
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300'
+      }
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
