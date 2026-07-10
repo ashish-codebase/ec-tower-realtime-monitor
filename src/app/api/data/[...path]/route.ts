@@ -13,6 +13,11 @@ export async function GET(
     return NextResponse.json({ error: 'No data file specified' }, { status: 400 });
   }
 
+  // Force env var check
+  if (!RENDER_BACKEND || RENDER_BACKEND === 'http://localhost:3001') {
+    throw new Error(`RENDER_BACKEND_URL not set! Current: ${RENDER_BACKEND}`);
+  }
+
   try {
     // Convert underscores back to dots for Render backend
     const renderIp = ipFile.replace(/_/g, '.');
