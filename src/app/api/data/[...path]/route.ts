@@ -20,6 +20,8 @@ export async function GET(
     const backendUrl = `${RENDER_BACKEND}/api/data/${renderPath}`;
     console.log(`[VercelData] RENDER_BACKEND=${RENDER_BACKEND}`);
     console.log(`[VercelData] Proxying to: ${backendUrl}`);
+    console.log(`[VercelData] RENDER_BACKEND=${RENDER_BACKEND}`);
+    console.log(`[VercelData] Proxying to: ${backendUrl}`);
     
     const res = await fetch(backendUrl, {
       signal: AbortSignal.timeout(30000) // 30s for large responses
