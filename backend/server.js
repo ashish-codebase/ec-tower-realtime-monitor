@@ -11,6 +11,14 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
+// Handle OPTIONS preflight
+app.options('*', (req, res) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  res.status(200).send();
+});
+
 // In-memory data store: { ip: SensorDataPoint[] }
 const dataStore = new Map();
 
@@ -164,6 +172,8 @@ app.get('/api/sites', (req, res) => {
 let fetchInProgress = false;
 
 app.post('/api/fetch', async (req, res) => {
+  console.log('[API] POST /api/fetch received');
+  
   if (fetchInProgress) {
     return res.json({ message: 'Fetch already in progress', status: 'running' });
   }
@@ -202,6 +212,11 @@ app.post('/api/fetch', async (req, res) => {
     fetchInProgress = false;
     console.error('[API] Fetch error:', err.message);
   });
+});
+
+// Also handle GET for compatibility
+app.get('/api/fetch', (req, res) => {
+  res.json({ message: 'Use POST method', status: 'error' });
 });
 
 app.get('/api/data/:ip.json', (req, res) => {
