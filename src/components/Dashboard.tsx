@@ -54,7 +54,7 @@ export default function Dashboard() {
       
       while (true) {
         const res = await fetch(`/api/data/${ipFile}.json?limit=${chunkSize}&offset=${offset}`, {
-          signal: AbortSignal.timeout(15000)
+          signal: AbortSignal.timeout(30000)
         });
         
         if (!res.ok) {
