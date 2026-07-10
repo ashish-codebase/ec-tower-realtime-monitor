@@ -3,7 +3,7 @@ const INTERVAL_MS = 300000; // 5 minutes
 let intervalId = null;
 let lastFetchTime = null;
 
-async function fetchAll(sites, fetchTowerData, dataStore) {
+async function fetchAll(sites, fetchTowerData, dataStore, saveData) {
   lastFetchTime = new Date().toISOString();
   console.log(`[Scheduler] Fetching ${sites.length} sites at ${lastFetchTime}`);
 
@@ -15,6 +15,7 @@ async function fetchAll(sites, fetchTowerData, dataStore) {
         const existing = dataStore.get(site.ip) || [];
         const combined = [...existing, ...data].slice(-2880);
         dataStore.set(site.ip, combined);
+        if (saveData) saveData(site.ip, combined); // Persist to disk
         return { name: site.name, ip: site.ip, status: 'ok', count: data.length };
       } catch (err) {
         return { name: site.name, ip: site.ip, status: 'error', error: err.message, count: 0 };
@@ -27,15 +28,15 @@ async function fetchAll(sites, fetchTowerData, dataStore) {
   console.log(`[Scheduler] Done: ${ok} ok, ${fail} failed`);
 }
 
-function start(loadSites, fetchTowerData, dataStore) {
+function start(loadSites, fetchTowerData, dataStore, saveData) {
   // Initial fetch
   const sites = loadSites();
-  fetchAll(sites, fetchTowerData, dataStore).catch(console.error);
+  fetchAll(sites, fetchTowerData, dataStore, saveData).catch(console.error);
 
   // Schedule periodic fetches
   intervalId = setInterval(() => {
     const sites = loadSites();
-    fetchAll(sites, fetchTowerData, dataStore).catch(console.error);
+    fetchAll(sites, fetchTowerData, dataStore, saveData).catch(console.error);
   }, INTERVAL_MS);
 
   console.log(`[Scheduler] Running every ${INTERVAL_MS / 1000}s`);
