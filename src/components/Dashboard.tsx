@@ -121,10 +121,11 @@ export default function Dashboard() {
       const json = JSON.parse(text);
       
       if (json.status === 'running') {
-        // Poll for completion
+        // Poll for completion via Render backend
+        const RENDER_BACKEND = process.env.NEXT_PUBLIC_RENDER_BACKEND_URL || 'https://ec-tower-backend.onrender.com';
         const pollInterval = setInterval(async () => {
           try {
-            const statusRes = await fetch('/api/status', {
+            const statusRes = await fetch(`${RENDER_BACKEND}/api/status`, {
               signal: AbortSignal.timeout(10000)
             });
             
