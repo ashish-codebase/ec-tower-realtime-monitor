@@ -18,6 +18,7 @@ export default function Dashboard() {
   const [data, setData] = useState<SensorDataPoint[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [fetching, setFetching] = useState(false);
   const [timeRange, setTimeRange] = useState<[number, number] | null>(null);
 
   // Load sites
@@ -76,22 +77,46 @@ export default function Dashboard() {
     });
   }, [data, timeRange]);
 
-  // Trigger manual fetch (for towers on reachable network)
+  // Trigger manual fetch (async - returns immediately, polls for completion)
   const handleFetch = async () => {
-    setLoading(true);
+    setFetching(true);
     setError(null);
     try {
-      const res = await fetch('/api/fetch');
+      // Start fetch (returns immediately)
+      const res = await fetch('/api/fetch', { method: 'POST' });
       const json = await res.json();
-      if (json.results?.some((r: any) => r.status === 'error')) {
-        const errs = json.results.filter((r: any) => r.status === 'error');
-        setError(`${errs.length} site(s) failed to fetch`);
+      
+      if (json.status === 'running') {
+        // Poll for completion
+        const pollInterval = setInterval(async () => {
+          try {
+            const statusRes = await fetch('/api/status');
+            const status = await statusRes.json();
+            
+            if (!status.fetchInProgress) {
+              clearInterval(pollInterval);
+              setFetching(false);
+              await loadData();
+            }
+          } catch (err) {
+            clearInterval(pollInterval);
+            setFetching(false);
+            setError(err instanceof Error ? err.message : String(err));
+          }
+        }, 2000); // Poll every 2s
+        
+        // Timeout after 5 minutes
+        setTimeout(() => {
+          clearInterval(pollInterval);
+          setFetching(false);
+        }, 300000);
+      } else {
+        setFetching(false);
+        await loadData();
       }
-      loadData();
     } catch (err) {
+      setFetching(false);
       setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -145,10 +170,10 @@ export default function Dashboard() {
       <div className="mb-4 flex gap-3">
         <button
           onClick={handleFetch}
-          disabled={loading}
+          disabled={fetching || loading}
           className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded text-sm font-medium transition"
         >
-          {loading ? 'Fetching...' : '🔄 Fetch Now'}
+          {fetching ? '⏳ Fetching (polling)...' : loading ? 'Loading...' : '🔄 Fetch Now'}
         </button>
         <span className="text-xs text-gray-500 self-center">Auto-poll every 5 min</span>
       </div>
