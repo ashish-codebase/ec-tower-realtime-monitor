@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
+
+const RENDER_BACKEND = process.env.RENDER_BACKEND_URL || 'http://localhost:3001';
 
 export async function GET(
   _request: NextRequest,
@@ -13,21 +13,11 @@ export async function GET(
     return NextResponse.json({ error: 'No data file specified' }, { status: 400 });
   }
 
-  const filePath = path.join(process.cwd(), 'data', ipFile);
-
-  if (!fs.existsSync(filePath)) {
-    return NextResponse.json({ data: [] });
+  try {
+    const res = await fetch(`${RENDER_BACKEND}/api/data/${ipFile}`);
+    if (!res.ok) throw new Error(`Backend error: ${res.status}`);
+    return NextResponse.json(await res.json());
+  } catch (err) {
+    return NextResponse.json({ data: [] }, { status: 502 });
   }
-
-  const content = fs.readFileSync(filePath, 'utf-8');
-  const lines = content.split('\n').filter((l) => l.trim());
-  const data = lines.map((line) => {
-    try {
-      return JSON.parse(line.trim());
-    } catch {
-      return null;
-    }
-  }).filter(Boolean);
-
-  return NextResponse.json({ data });
 }

@@ -1,27 +1,13 @@
 import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
+
+const RENDER_BACKEND = process.env.RENDER_BACKEND_URL || 'http://localhost:3001';
 
 export async function GET() {
-  const csvPath = path.join(process.cwd(), 'site_name_ip_address.csv');
-  
-  if (!fs.existsSync(csvPath)) {
-    return NextResponse.json({ sites: [] });
+  try {
+    const res = await fetch(`${RENDER_BACKEND}/api/sites`);
+    if (!res.ok) throw new Error(`Backend error: ${res.status}`);
+    return NextResponse.json(await res.json());
+  } catch (err) {
+    return NextResponse.json({ sites: [] }, { status: 502 });
   }
-
-  const content = fs.readFileSync(csvPath, 'utf-8');
-  const sites: { name: string; ip: string }[] = [];
-  const seenIps = new Set<string>();
-
-  for (const line of content.split('\n')) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith('#')) continue;
-    const [name, ip] = trimmed.split(',').map((s) => s.trim());
-    if (name && ip && !seenIps.has(ip)) {
-      seenIps.add(ip);
-      sites.push({ name, ip });
-    }
-  }
-
-  return NextResponse.json({ sites });
 }
