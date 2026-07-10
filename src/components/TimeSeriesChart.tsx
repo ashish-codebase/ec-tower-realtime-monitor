@@ -100,7 +100,7 @@ export default function TimeSeriesChart({ data, sensorKeys, title, timeRange }: 
       plugins: {
         title: { display: true, text: title, font: { size: 14 } },
         legend: {
-          display: datasets.length > 1,
+          display: true,
           position: 'top' as const,
         },
         tooltip: {
