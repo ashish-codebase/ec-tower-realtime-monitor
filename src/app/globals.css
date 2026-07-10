@@ -1,0 +1,42 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8f9fa;
+  --text-primary: #1a1a2e;
+  --text-secondary: #6c757d;
+  --border-color: #dee2e6;
+  --chart-line: #4361ee;
+  --chart-bg: rgba(67, 97, 238, 0.1);
+  --error-bg: #fee2e2;
+  --error-text: #dc2626;
+}
+
+.dark {
+  --bg-primary: #1a1a2e;
+  --bg-secondary: #16213e;
+  --text-primary: #eaeaea;
+  --text-secondary: #a0a0b0;
+  --border-color: #2d3748;
+  --chart-line: #60a5fa;
+  --chart-bg: rgba(96, 165, 250, 0.15);
+  --error-bg: #7f1d1d;
+  --error-text: #fca5a5;
+}
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background-color 0.3s, color 0.3s;
+}
+
+@keyframes pulse-error {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.pulse-error {
+  animation: pulse-error 2s ease-in-out infinite;
+}
