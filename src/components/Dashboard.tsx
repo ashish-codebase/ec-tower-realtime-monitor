@@ -98,14 +98,14 @@ export default function Dashboard() {
     }
   }, [data, timeRange]);
 
-  // Filter data by time range
-  const filteredData = useMemo(() => {
-    if (!timeRange || timeRange[0] === 0 && timeRange[1] === 0) return data;
-    return data.filter(p => {
-      const ts = p.timestamp * 1000;
-      return ts >= timeRange[0] && ts <= timeRange[1];
-    });
-  }, [data, timeRange]);
+  // Filter data by time range - DISABLED (show all)
+  const filteredData = data; // useMemo(() => {
+  //   if (!timeRange || timeRange[0] === 0 && timeRange[1] === 0) return data;
+  //   return data.filter(p => {
+  //     const ts = p.timestamp * 1000;
+  //     return ts >= timeRange[0] && ts <= timeRange[1];
+  //   });
+  // }, [data, timeRange]);
 
   // Trigger manual fetch (async - returns immediately, polls for completion)
   const handleFetch = async () => {
@@ -234,8 +234,8 @@ export default function Dashboard() {
         <span className="text-xs text-gray-500 self-center">Auto-poll every 5 min</span>
       </div>
 
-      {/* Time Range Slider */}
-      {data.length > 0 && timeRange && (
+      {/* Time Range Slider - DISABLED */}
+      {/* {data.length > 0 && timeRange && (
         <div className="mb-6">
           <TimeRangeSlider
             minTimestamp={Math.min(...data.map(p => p.timestamp * 1000))}
@@ -244,7 +244,7 @@ export default function Dashboard() {
             onChange={setTimeRange}
           />
         </div>
-      )}
+      )} */}
 
       {/* Charts - grouped by K-means clusters */}
       {filteredData.length > 0 && activeClusters.length > 0 && (
