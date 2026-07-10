@@ -84,6 +84,7 @@ export default function Dashboard() {
   // Load data when site changes
   useEffect(() => {
     if (selectedIp) {
+      console.log(`[Dashboard] Site changed to ${selectedIp}, loading data...`);
       loadData();
     }
   }, [selectedIp, loadData]);
@@ -255,7 +256,7 @@ export default function Dashboard() {
 
       {/* Charts - grouped by K-means clusters */}
       {filteredData.length > 0 && activeClusters.length > 0 && (
-        <div className="space-y-8 mb-8">
+        <div key={selectedIp} className="space-y-8 mb-8">
           {activeClusters.map((cluster) => (
             <div key={cluster.name} className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 border border-gray-200 dark:border-gray-700" style={{ minHeight: 300 }}>
               <TimeSeriesChart 
