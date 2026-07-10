@@ -16,27 +16,36 @@ export async function GET(
   try {
     // Convert underscores back to dots for Render backend
     const renderIp = ipFile.replace(/_/g, '.');
-    const res = await fetch(`${RENDER_BACKEND}/api/data/${renderIp}.json`, {
+    const backendUrl = `${RENDER_BACKEND}/api/data/${renderIp}.json`;
+    console.log(`[DEBUG] Proxying to: ${backendUrl}`);
+    
+    const res = await fetch(backendUrl, {
       signal: AbortSignal.timeout(10000)
     });
     
+    console.log(`[DEBUG] Backend response: ${res.status} ${res.statusText}`);
+    
     if (!res.ok) {
       const text = await res.text();
-      console.error(`Backend error ${res.status}:`, text.substring(0, 200));
-      return NextResponse.json({ data: [] }, { status: 502 });
+      console.error(`[DEBUG] Backend error ${res.status}:`, text.substring(0, 200));
+      return NextResponse.json({ error: `Backend error: ${res.status}` }, { status: 502 });
     }
     
     const contentType = res.headers.get('content-type');
+    const text = await res.text();
+    
     if (!contentType || !contentType.includes('application/json')) {
-      const text = await res.text();
-      console.error('Backend returned non-JSON:', text.substring(0, 200));
-      return NextResponse.json({ data: [] }, { status: 502 });
+      console.error('[DEBUG] Backend returned non-JSON:', text.substring(0, 200));
+      return NextResponse.json({ error: 'Backend returned invalid response' }, { status: 502 });
     }
     
-    return NextResponse.json(await res.json());
+    console.log(`[DEBUG] Returning ${text.length} bytes`);
+    return new Response(text, {
+      headers: { 'Content-Type': 'application/json' }
+    });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error('Fetch error:', msg);
-    return NextResponse.json({ data: [] }, { status: 502 });
+    console.error('[DEBUG] Fetch error:', msg);
+    return NextResponse.json({ error: `Fetch error: ${msg}` }, { status: 502 });
   }
 }
