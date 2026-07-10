@@ -161,32 +161,47 @@ app.get('/api/sites', (req, res) => {
   res.json({ sites });
 });
 
+let fetchInProgress = false;
+
 app.post('/api/fetch', async (req, res) => {
+  if (fetchInProgress) {
+    return res.json({ message: 'Fetch already in progress', status: 'running' });
+  }
+
+  fetchInProgress = true;
+  console.log('[API] Manual fetch triggered');
+
+  // Fire and forget - don't wait for completion
   const sites = loadSites();
   const results = [];
 
-  for (const site of sites) {
-    try {
-      const data = await fetchTowerData(site.ip);
-      dataStore.set(site.ip, data);
-      results.push({
-        name: site.name,
-        ip: site.ip,
-        status: 'ok',
-        count: data.length
-      });
-    } catch (err) {
-      results.push({
-        name: site.name,
-        ip: site.ip,
-        status: 'error',
-        error: err.message,
-        count: 0
-      });
-    }
-  }
+  const fetchPromise = Promise.allSettled(
+    sites.map(async (site) => {
+      try {
+        const data = await fetchTowerData(site.ip);
+        dataStore.set(site.ip, data);
+        return { name: site.name, ip: site.ip, status: 'ok', count: data.length };
+      } catch (err) {
+        return { name: site.name, ip: site.ip, status: 'error', error: err.message, count: 0 };
+      }
+    })
+  ).then(results => {
+    fetchInProgress = false;
+    return results;
+  });
 
-  res.json({ results });
+  // Return immediately with status
+  res.json({ message: 'Fetch started', status: 'running' });
+
+  // Wait for completion in background
+  fetchPromise.then(results => {
+    const ok = results.filter(r => r.status === 'fulfilled' && r.value.status === 'ok').length;
+    const fail = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && r.value.status === 'error')).length;
+    console.log(`[API] Fetch complete: ${ok} ok, ${fail} failed`);
+  }).catch(err => {
+    fetchInProgress = false;
+    console.error('[API] Fetch error:', err.message);
+  });
 });
 
 app.get('/api/data/:ip.json', (req, res) => {
@@ -206,7 +221,11 @@ app.get('/api/status', (req, res) => {
     hasData: dataStore.has(site.ip),
     pointCount: dataStore.get(site.ip)?.length || 0
   }));
-  res.json({ status, lastFetch: scheduler.lastFetchTime });
+  res.json({ 
+    status, 
+    lastFetch: scheduler.lastFetchTime,
+    fetchInProgress 
+  });
 });
 
 // Start scheduler (fetches every 30 seconds)
