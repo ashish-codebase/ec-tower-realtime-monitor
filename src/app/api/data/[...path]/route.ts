@@ -105,7 +105,8 @@ export async function GET(
 if (typeof globalThis.setInterval !== 'undefined') {
   setInterval(() => {
     const now = Date.now();
-    for (const [key, value] of dataCache.entries()) {
+    const entries = Array.from(dataCache.entries());
+    for (const [key, value] of entries) {
       if (now - value.timestamp > CACHE_TTL * 2) {
         dataCache.delete(key);
       }
