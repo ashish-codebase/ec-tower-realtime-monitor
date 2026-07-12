@@ -6,7 +6,6 @@ import path from 'path';
 const lastRequestTimes = new Map<string, number>();
 const MAX_REQUESTS_PER_SECOND = 5;
 
-
 // Simple in-memory cache for data files
 const dataCache = new Map<string, { content: string; timestamp: number }>();
 const CACHE_TTL = 30000; // 30 seconds cache TTL
@@ -26,29 +25,20 @@ export async function GET(
   { params }: { params: Promise<{ path: string[] }> }
 ) {
   const resolved = await params;
-
-  // Throttle requests per second for each file
-  const now = Date.now();
-  const lastTime = lastRequestTimes.get(ipFile) || 0;
-  if (now - lastTime < 1000 / MAX_REQUESTS_PER_SECOND) {
-    console.warn(`[VercelData] Rate limit exceeded for ${ipFile}`);
-    return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
-  }
-  lastRequestTimes.set(ipFile, now);
   const [ipFile] = resolved.path;
-
-  // Throttle requests per second for each file
-  const now = Date.now();
-  const lastTime = lastRequestTimes.get(ipFile) || 0;
-  if (now - lastTime < 1000 / MAX_REQUESTS_PER_SECOND) {
-    console.warn(`[VercelData] Rate limit exceeded for ${ipFile}`);
-    return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
-  }
-  lastRequestTimes.set(ipFile, now);
 
   if (!ipFile) {
     return NextResponse.json({ error: 'No data file specified' }, { status: 400 });
   }
+
+  // Throttle requests per second for each file
+  const now = Date.now();
+  const lastTime = lastRequestTimes.get(ipFile) || 0;
+  if (now - lastTime < 1000 / MAX_REQUESTS_PER_SECOND) {
+    console.warn(`[VercelData] Rate limit exceeded for ${ipFile}`);
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+  }
+  lastRequestTimes.set(ipFile, now);
 
   // Check cache first
   const cacheKey = `data_${ipFile}`;
