@@ -45,6 +45,12 @@ export default function Dashboard() {
 
   // Load data for selected site
   const loadData = useCallback(async () => {
+  const now = Date.now();
+  if (lastFetchTimestampRef.current && now - lastFetchTimestampRef.current < 1000) {
+    return; // throttle to 1 request per second
+  }
+  setLoading(true);
+  setError(null);
     if (!selectedIp) return;
     setLoading(true);
     setError(null);
@@ -72,6 +78,7 @@ export default function Dashboard() {
       const data = Array.isArray(json) ? json : json.data || [];
       
       setData(data);
+      lastFetchTimestampRef.current = now;
       setLastFetchTime(new Date());
       if (selectedSite) {
         setSiteStatuses(prev => ({ ...prev, [selectedIp]: 'live' }));
@@ -86,7 +93,8 @@ export default function Dashboard() {
   }, [selectedIp, sites]);
 
   // Ref for loadData to avoid stale closures
-  const loadDataRef = useRef(loadData);
+  const lastFetchTimestampRef = useRef(0);
+const loadDataRef = useRef(loadData);
   loadDataRef.current = loadData;
 
   // Load data when site changes (only once per site change)
