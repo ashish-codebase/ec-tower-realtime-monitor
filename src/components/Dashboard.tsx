@@ -235,7 +235,12 @@ export default function Dashboard() {
       <ErrorBanner message={error} onClose={() => setError(null)} />
 
       {/* Site Selector */}
-      <SiteSelector sites={sites} selected={selectedIp} onChange={setSelectedIp} />
+      <SiteSelector 
+        sites={sites} 
+        selected={selectedIp} 
+        onChange={setSelectedIp}
+        status={loading ? 'checking' : data.length > 0 ? 'live' : 'not-found'}
+      />
 
       {/* Controls */}
       <div className="mb-4 flex gap-3">

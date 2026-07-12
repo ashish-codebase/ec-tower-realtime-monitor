@@ -1,50 +1,18 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import { Site } from '@/types';
 
 interface Props {
   sites: Site[];
   selected: string;
   onChange: (ip: string) => void;
+  status?: 'live' | 'not-found' | 'checking';
 }
 
-interface SiteStatus {
-  [key: string]: 'live' | 'not-found' | 'checking';
-}
-
-export default function SiteSelector({ sites, selected, onChange }: Props) {
-  const [statuses, setStatuses] = useState<SiteStatus>({});
-
-  // Check status of all sites
-  useEffect(() => {
-    const checkStatuses = async () => {
-      const newStatuses: SiteStatus = {};
-      
-      for (const site of sites) {
-        try {
-          const res = await fetch(`/api/data/${site.name}.json?limit=1`, {
-            signal: AbortSignal.timeout(3000)
-          });
-          newStatuses[site.ip] = res.ok ? 'live' : 'not-found';
-        } catch {
-          newStatuses[site.ip] = 'not-found';
-        }
-      }
-      
-      setStatuses(newStatuses);
-    };
-    
-    checkStatuses();
-    // Refresh every 30 seconds
-    const interval = setInterval(checkStatuses, 30000);
-    return () => clearInterval(interval);
-  }, [sites]);
-
+export default function SiteSelector({ sites, selected, onChange, status }: Props) {
   return (
     <div className="flex flex-wrap gap-3 mb-6">
       {sites.map((site) => {
-        const status = statuses[site.ip] || 'checking';
         const isSelected = selected === site.ip;
         
         return (
@@ -67,27 +35,15 @@ export default function SiteSelector({ sites, selected, onChange }: Props) {
             />
             
             {/* Status Icon */}
-            <span className={`text-lg`}>
-              {status === 'live' && <span title="Live">🟢</span>}
-              {status === 'not-found' && <span title="Not Found">⚪</span>}
-              {status === 'checking' && <span title="Checking...">🔄</span>}
+            <span className="text-lg">
+              {status === 'live' && '🟢'}
+              {status === 'not-found' && '⚪'}
+              {status === 'checking' && '🔄'}
             </span>
             
             {/* Site Name */}
-            <span className={`text-sm font-medium`}>
+            <span className="text-sm font-medium">
               {site.name}
-            </span>
-            
-            {/* Status Label */}
-            <span className={`
-              text-xs px-2 py-0.5 rounded-full
-              ${status === 'live' 
-                ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' 
-                : status === 'not-found'
-                ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'}
-            `}>
-              {status === 'live' ? 'Live' : status === 'not-found' ? 'Not Found' : 'Checking'}
             </span>
           </label>
         );
