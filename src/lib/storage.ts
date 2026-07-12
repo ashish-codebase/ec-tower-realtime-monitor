@@ -65,11 +65,13 @@ export function appendSiteData(ip: string, newPoints: SensorDataPoint[]) {
   }
   fs.closeSync(fd);
 
-  // Keep max 10000 points
+  // Keep max 2880 points (circular buffer - oldest gets replaced)
+  const MAX_POINTS = 2880;
   const updated = readSiteData(ip);
-  if (updated.length > 10000) {
-    const kept = updated.slice(-10000);
+  if (updated.length > MAX_POINTS) {
+    const kept = updated.slice(-MAX_POINTS);
     fs.writeFileSync(filePath, kept.map((p) => JSON.stringify(p)).join('\n') + '\n');
+    console.log(`[Storage] Trimmed ${ip} from ${updated.length} to ${kept.length} points`);
   }
 }
 
