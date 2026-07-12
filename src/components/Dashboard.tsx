@@ -21,6 +21,7 @@ export default function Dashboard() {
   const [fetching, setFetching] = useState(false);
   const [lastFetchTime, setLastFetchTime] = useState<Date | null>(null);
   const [timeRange, setTimeRange] = useState<[number, number] | null>(null);
+  const [siteStatuses, setSiteStatuses] = useState<{ [key: string]: 'live' | 'not-found' | 'checking' }>({});
 
   // Load sites
   useEffect(() => {
@@ -72,9 +73,13 @@ export default function Dashboard() {
       
       setData(data);
       setLastFetchTime(new Date());
+      if (selectedSite) {
+        setSiteStatuses(prev => ({ ...prev, [selectedIp]: 'live' }));
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setError(msg);
+      setSiteStatuses(prev => ({ ...prev, [selectedIp]: 'not-found' }));
     } finally {
       setLoading(false);
     }
@@ -224,9 +229,6 @@ export default function Dashboard() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold">EC Tower Live Monitor</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            {selectedSite ? `${selectedSite.name} (${selectedIp})` : 'Select a site'}
-          </p>
         </div>
         <ThemeToggle />
       </div>
@@ -239,7 +241,7 @@ export default function Dashboard() {
         sites={sites} 
         selected={selectedIp} 
         onChange={setSelectedIp}
-        status={loading ? 'checking' : data.length > 0 ? 'live' : 'not-found'}
+        siteStatuses={siteStatuses}
       />
 
       {/* Controls */}

@@ -6,14 +6,15 @@ interface Props {
   sites: Site[];
   selected: string;
   onChange: (ip: string) => void;
-  status?: 'live' | 'not-found' | 'checking';
+  siteStatuses?: { [key: string]: 'live' | 'not-found' | 'checking' };
 }
 
-export default function SiteSelector({ sites, selected, onChange, status }: Props) {
+export default function SiteSelector({ sites, selected, onChange, siteStatuses }: Props) {
   return (
     <div className="flex flex-wrap gap-3 mb-6">
       {sites.map((site) => {
         const isSelected = selected === site.ip;
+        const status = siteStatuses?.[site.ip] || 'checking';
         
         return (
           <label
@@ -22,6 +23,8 @@ export default function SiteSelector({ sites, selected, onChange, status }: Prop
               flex items-center gap-2 px-4 py-2 rounded-lg cursor-pointer select-none transition-all
               ${isSelected 
                 ? 'bg-blue-600 text-white shadow-lg scale-105' 
+                : status === 'not-found'
+                ? 'bg-gray-200 dark:bg-gray-700 opacity-50'
                 : 'bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700'}
             `}
           >
@@ -32,6 +35,7 @@ export default function SiteSelector({ sites, selected, onChange, status }: Prop
               checked={isSelected}
               onChange={() => onChange(site.ip)}
               className="accent-blue-500 w-4 h-4"
+              disabled={status === 'not-found' && !isSelected}
             />
             
             {/* Status Icon */}
