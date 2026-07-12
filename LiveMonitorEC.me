@@ -1,0 +1,92 @@
+# EC Tower Live Monitor
+
+## Overview
+A Next.js + React dashboard that streams real‑time eddy covariance data from multiple tower sites. Data is fetched via a lightweight TCP proxy, stored locally as NDJSON, and visualized with Chart.js.
+
+## Prerequisites
+- **Node.js** 18+ (recommended LTS)
+- **npm** (bundled with Node) or **yarn**
+- Access to tower IPs on port **50311**
+- (Optional) Vercel account for deployment
+
+## Setup Steps
+1. **Clone the repo**
+   ```bash
+   git clone https://github.com/ashish-codebase/ec-tower-realtime-monitor.git
+   cd ec-tower-realtime-monitor
+   ```
+2. **Install dependencies**
+   ```bash
+   npm install
+   # or yarn install
+   ```
+3. **Configure site list**
+   Edit `site_name_ip_address.csv` with one line per site: `Name,IP`. Example:
+   ```csv
+   Baggs,107.89.240.97
+   Boulder,166.230.26.67
+   ```
+4. **Optional: Pre‑load existing data**
+   Copy JSON files from your Python project into `data/` folder, or let the backend fetch fresh data.
+5. **Environment variables**
+   Create `.env.local` with:
+   ```env
+   NEXT_PUBLIC_RENDER_BACKEND_URL=https://ec-tower-backend.onrender.com
+   BACKEND_URL=http://45.76.30.90:3001
+   ```
+6. **Run the dev server**
+   ```bash
+   npm run dev
+   # Visit http://localhost:3000
+   ```
+7. **Build for production**
+   ```bash
+   npm run build
+   npm start
+   ```
+8. **Deploy to Vercel** (optional)
+   - Push changes to GitHub.
+   - In Vercel dashboard, import the repo and set the above env vars.
+   - Deploy; the app will auto‑build on push.
+
+## Project Structure
+```
+├─ src/
+│  ├─ app/
+│  │  ├─ api/
+│  │  │  ├─ data/[...path]/route.ts    # Serve JSON files
+│  │  │  ├─ fetch/route.ts             # Manual poll trigger
+│  │  │  ├─ sites/route.ts             # List configured sites
+│  │  │  └─ poll-status/route.ts        # Polling status
+│  │  ├─ page.tsx                      # Dashboard entry point
+│  │  └─ layout.tsx                    # Root layout
+│  ├─ components/
+│  │  ├─ Dashboard.tsx                # Main UI
+│  │  ├─ SiteSelector.tsx             # Site picker
+│  │  ├─ TimeSeriesChart.tsx          # Chart component
+│  │  └─ StatsTable.tsx               # Statistics table
+│  └─ lib/
+│     ├─ tcp.ts                       # TCP client
+│     ├─ storage.ts                   # File I/O
+│     └─ poller.ts                    # Background polling
+├─ data/                                 # JSON data files
+├─ site_name_ip_address.csv              # Site config
+└─ next.config.js, tailwind.config.ts etc.
+```
+
+## Key Configuration
+- **Polling interval**: 5 min (see `src/lib/poller.ts`).
+- **Chart window**: 24 h (adjust in `TimeSeriesChart.tsx`).
+- **Cache TTL**: 30 s for API data.
+- **Rate limiting**: Front‑end throttles to 1 req/s, back‑end limits 5 req/s per file.
+
+## Running Tests
+No tests included yet. Future work: add Jest + React Testing Library.
+
+## Deployment Tips
+- For Vercel, ensure the `data/` folder is included in the repo or uploaded via GitHub Actions.
+- Set `NEXT_PUBLIC_RENDER_BACKEND_URL` to your backend service URL.
+- Use environment variables for sensitive data; do not commit them.
+
+---
+**Enjoy monitoring your EC towers!**

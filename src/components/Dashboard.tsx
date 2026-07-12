@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Site, SensorDataPoint } from '@/types';
+import { useSiteData } from '@/hooks/useSiteData';
 import { getSensorGroups } from '@/lib/settings';
 import SiteSelector from './SiteSelector';
 import TimeSeriesChart from './TimeSeriesChart';
@@ -15,9 +16,7 @@ const POLL_MS = 5 * 60 * 1000; // 5 minutes
 export default function Dashboard() {
   const [sites, setSites] = useState<Site[]>([]);
   const [selectedIp, setSelectedIp] = useState<string>('');
-  const [data, setData] = useState<SensorDataPoint[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  
   const [fetching, setFetching] = useState(false);
   const [lastFetchTime, setLastFetchTime] = useState<Date | null>(null);
   const [timeRange, setTimeRange] = useState<[number, number] | null>(null);
