@@ -48,13 +48,15 @@ export default function Dashboard() {
     setLoading(true);
     setError(null);
     try {
-      const ipFile = selectedIp.replace(/\./g, '_');
+      // Find site name from selected IP
+      const selectedSite = sites.find((s) => s.ip === selectedIp);
+      const siteName = selectedSite?.name || selectedIp.replace(/\./g, '_');
       const allData: SensorDataPoint[] = [];
       let offset = 0;
       const chunkSize = 2; // Vercel free tier timeout limit
       
       while (true) {
-        const res = await fetch(`/api/data/${ipFile}.json?limit=${chunkSize}&offset=${offset}`, {
+        const res = await fetch(`/api/data/${siteName}.json?limit=${chunkSize}&offset=${offset}`, {
           signal: AbortSignal.timeout(30000)
         });
         
