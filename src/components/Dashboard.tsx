@@ -17,6 +17,9 @@ export default function Dashboard() {
   const [sites, setSites] = useState<Site[]>([]);
   const [selectedIp, setSelectedIp] = useState<string>('');
   
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [data, setData] = useState<SensorDataPoint[]>([]);
   const [fetching, setFetching] = useState(false);
   const [lastFetchTime, setLastFetchTime] = useState<Date | null>(null);
   const [timeRange, setTimeRange] = useState<[number, number] | null>(null);
