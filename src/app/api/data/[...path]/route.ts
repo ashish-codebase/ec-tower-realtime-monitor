@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const BACKEND_URL = process.env.BACKEND_URL || 'https://ec-tower-backend.onrender.com';
+const BACKEND_URL = process.env.BACKEND_URL || 'http://45.76.30.90:3001';
 
 export async function GET(
   _request: NextRequest,
