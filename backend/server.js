@@ -276,9 +276,17 @@ app.get('/api/fetch', (req, res) => {
   res.json({ message: 'Fetch started', status: 'running' });
 });
 
-app.get('/api/data/:ip.json', (req, res) => {
-  // Convert underscores back to dots (frontend sends 107_89_240_97, store has 107.89.240.97)
-  const ip = req.params.ip.replace(/_/g, '.');
+app.get('/api/data/:siteName.json', (req, res) => {
+  const siteName = req.params.siteName;
+  
+  // Look up IP from site name
+  const sites = loadSites();
+  const site = sites.find(s => s.name === siteName);
+  if (!site) {
+    return res.json({ error: `Site '${siteName}' not found` }, { status: 404 });
+  }
+  
+  const ip = site.ip;
   const data = dataStore.get(ip);
   if (!data) {
     return res.json({ error: 'No data for this site. Run /api/fetch first.' });

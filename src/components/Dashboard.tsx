@@ -42,7 +42,7 @@ export default function Dashboard() {
       .catch(() => setSites([]));
   }, [selectedIp]);
 
-  // Load data for selected site (fetch in chunks) - v2
+  // Load data for selected site
   const loadData = useCallback(async () => {
     if (!selectedIp) return;
     setLoading(true);
@@ -50,32 +50,27 @@ export default function Dashboard() {
     try {
       // Find site name from selected IP
       const selectedSite = sites.find((s) => s.ip === selectedIp);
-      const siteName = selectedSite?.name || 'SITE-' + selectedIp.replace(/\./g, '-');
-      const allData: SensorDataPoint[] = [];
-      let offset = 0;
-      const chunkSize = 2; // Vercel free tier timeout limit
+      const siteName = selectedSite?.name || selectedIp.replace(/\./g, '_');
       
-      while (true) {
-        const res = await fetch(`/api/data/${siteName}.json?limit=${chunkSize}&offset=${offset}`, {
-          signal: AbortSignal.timeout(30000)
-        });
-        
-        if (!res.ok) {
-          throw new Error(`Backend error: ${res.status}`);
-        }
-        
-        const text = await res.text();
-        if (!text) break;
-        
-        const json = JSON.parse(text);
-        const chunk = Array.isArray(json) ? json : json.data || [];
-        allData.push(...chunk);
-        
-        if (chunk.length < chunkSize) break; // Last chunk
-        offset += chunkSize;
+      const res = await fetch(`/api/data/${siteName}.json`, {
+        signal: AbortSignal.timeout(30000)
+      });
+      
+      if (!res.ok) {
+        throw new Error(`Backend error: ${res.status}`);
       }
       
-      setData(allData);
+      const text = await res.text();
+      if (!text) {
+        setData([]);
+        setLastFetchTime(new Date());
+        return;
+      }
+      
+      const json = JSON.parse(text);
+      const data = Array.isArray(json) ? json : json.data || [];
+      
+      setData(data);
       setLastFetchTime(new Date());
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
