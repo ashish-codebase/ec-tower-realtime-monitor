@@ -34,7 +34,7 @@ export default function SiteSelector({ sites, selected, onChange, siteStatuses }
               value={site.ip}
               checked={isSelected}
               onChange={() => onChange(site.ip)}
-              className="accent-blue-500 w-4 h-4"
+              className={`w-4 h-4 ${status === 'not-found' ? 'accent-red-600' : 'accent-blue-500'}`}
               disabled={status === 'not-found' && !isSelected}
             />
             
