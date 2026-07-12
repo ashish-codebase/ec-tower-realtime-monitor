@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Site, SensorDataPoint } from '@/types';
 import { getSensorGroups } from '@/lib/settings';
 import SiteSelector from './SiteSelector';
@@ -80,19 +80,23 @@ export default function Dashboard() {
     }
   }, [selectedIp, sites]);
 
+  // Ref for loadData to avoid stale closures
+  const loadDataRef = useRef(loadData);
+  loadDataRef.current = loadData;
+
   // Load data when site changes (only once per site change)
   useEffect(() => {
     if (selectedIp) {
       console.log(`[Dashboard] Site changed to ${selectedIp}, loading data...`);
-      loadData();
+      loadDataRef.current();
     }
-  }, [selectedIp]); // Only depend on selectedIp, not loadData
+  }, [selectedIp]);
 
   // Auto-poll every 5 minutes (stable interval)
   useEffect(() => {
     const interval = setInterval(() => {
       if (selectedIp) {
-        loadData();
+        loadDataRef.current();
       }
     }, POLL_MS);
     return () => clearInterval(interval);
