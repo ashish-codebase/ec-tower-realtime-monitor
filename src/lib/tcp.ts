@@ -25,14 +25,14 @@ export async function fetchTowerData(ip: string): Promise<SensorDataPoint[]> {
       cleanup();
       const raw = Buffer.concat(chunks).toString('utf-8');
       const points = parseTowerResponse(raw);
-      resolve(points);
+      resolve(points || []);
     }, TOTAL_TIMEOUT_MS);
 
     client.on('end', () => {
       cleanup();
       const raw = Buffer.concat(chunks).toString('utf-8');
       const points = parseTowerResponse(raw);
-      resolve(points);
+      resolve(points || []);
     });
 
     client.on('error', (err) => {
