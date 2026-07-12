@@ -47,7 +47,7 @@ export async function fetchTowerData(ip: string): Promise<SensorDataPoint[]> {
   });
 }
 
-function parseTowerResponse(raw: string): SensorDataPoint[] {
+function parseTowerResponse(raw: string): SensorDataPoint[] | null {
   // Strip HTTP headers if present (up to first \r\n\r\n)
   const headerEnd = raw.indexOf('\r\n\r\n');
   let body = raw;
@@ -58,7 +58,6 @@ function parseTowerResponse(raw: string): SensorDataPoint[] {
   // Tower sends nested JSON format:
   // {"1":{"data":["CK-00638",1783652880,{"61":0.387},{"63":13.5},...]}}
   // {"0":{"data":["CK-00640",1783652880,{"22":-4e-06},{"23":-7e-06},...]}}
-  // Some lines have binary hex garbage appended after the JSON — strip it.
   const points: SensorDataPoint[] = [];
 
   const lines = body.split('\n');
@@ -96,6 +95,7 @@ function parseTowerResponse(raw: string): SensorDataPoint[] {
     }
   }
 
+  if (points.length === 0) return null;
   return points;
 }
 
