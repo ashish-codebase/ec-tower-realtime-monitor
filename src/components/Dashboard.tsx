@@ -96,7 +96,7 @@ export default function Dashboard() {
       }
     }, POLL_MS);
     return () => clearInterval(interval);
-  }, [selectedIp, loadData]);
+  }, [selectedIp]); // Only depend on selectedIp
 
   // Initialize time range to full data range
   useEffect(() => {
