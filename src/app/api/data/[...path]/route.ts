@@ -20,6 +20,24 @@ async function getDataFileFromFileSystem(sitePath: string) {
   }
 }
 
+// Convert Unix timestamps to readable ISO strings for debugging
+function addReadableTimestamps(content: string): string {
+  try {
+    const data = JSON.parse(content);
+    if (Array.isArray(data)) {
+      const transformed = data.map(point => ({
+        ...point,
+        timestamp_readable: new Date(point.timestamp * 1000).toISOString(),
+        timestamp_utc: new Date(point.timestamp * 1000).toISOString().replace('T', ' ').replace('Z', ' UTC')
+      }));
+      return JSON.stringify(transformed, null, 2);
+    }
+    return content;
+  } catch (e) {
+    return content;
+  }
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ path: string[] }> }
@@ -79,15 +97,18 @@ export async function GET(
       return NextResponse.json({ error: 'No data available' }, { status: 404 });
     }
     
+    // Add readable timestamps for debugging
+    const transformedContent = addReadableTimestamps(content);
+    
     // Cache the response
     dataCache.set(cacheKey, {
-      content,
+      content: transformedContent,
       timestamp: Date.now()
     });
     
-    console.log(`[VercelData] Returning ${content.length} bytes for ${ipFile}`);
+    console.log(`[VercelData] Returning ${transformedContent.length} bytes for ${ipFile}`);
     
-    return new Response(content, {
+    return new Response(transformedContent, {
       headers: {
         'Content-Type': 'application/json',
         'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60'
