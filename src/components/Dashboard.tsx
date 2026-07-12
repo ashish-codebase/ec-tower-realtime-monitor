@@ -50,7 +50,7 @@ export default function Dashboard() {
     try {
       // Find site name from selected IP
       const selectedSite = sites.find((s) => s.ip === selectedIp);
-      const siteName = selectedSite?.name || selectedIp.replace(/\./g, '_');
+      const siteName = selectedSite?.name || 'SITE-' + selectedIp.replace(/\./g, '-');
       const allData: SensorDataPoint[] = [];
       let offset = 0;
       const chunkSize = 2; // Vercel free tier timeout limit
