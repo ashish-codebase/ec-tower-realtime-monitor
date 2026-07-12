@@ -78,21 +78,25 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
-  }, [selectedIp]);
+  }, [selectedIp, sites]);
 
-  // Load data when site changes
+  // Load data when site changes (only once per site change)
   useEffect(() => {
     if (selectedIp) {
       console.log(`[Dashboard] Site changed to ${selectedIp}, loading data...`);
       loadData();
     }
-  }, [selectedIp, loadData]);
+  }, [selectedIp]); // Only depend on selectedIp, not loadData
 
-  // Auto-poll every 5 minutes
+  // Auto-poll every 5 minutes (stable interval)
   useEffect(() => {
-    const interval = setInterval(loadData, POLL_MS);
+    const interval = setInterval(() => {
+      if (selectedIp) {
+        loadData();
+      }
+    }, POLL_MS);
     return () => clearInterval(interval);
-  }, [loadData]);
+  }, [selectedIp, loadData]);
 
   // Initialize time range to full data range
   useEffect(() => {
