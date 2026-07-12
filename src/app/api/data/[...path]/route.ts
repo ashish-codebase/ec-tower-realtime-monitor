@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const RENDER_BACKEND = process.env.RENDER_BACKEND_URL || 'http://localhost:3001';
+const BACKEND_URL = process.env.BACKEND_URL || 'https://ec-tower-backend.onrender.com';
 
 export async function GET(
   _request: NextRequest,
@@ -14,15 +14,11 @@ export async function GET(
   }
 
   try {
-    // Convert underscores back to dots for Render backend
-    // ipFile is like "107_89_240_97.json", need "107.89.240.97.json"
-    const renderPath = ipFile.replace(/_/g, '.');
-    
-    // Forward query params from request to Render
+    // Use site name directly (no IP conversion needed)
     const searchParams = _request.nextUrl.searchParams;
     const limit = searchParams.get('limit') || '1000';
     const offset = searchParams.get('offset') || '0';
-    const backendUrl = `${RENDER_BACKEND}/api/data/${renderPath}?limit=${limit}&offset=${offset}`;
+    const backendUrl = `${BACKEND_URL}/api/data/${ipFile}?limit=${limit}&offset=${offset}`;
     
     console.log(`[VercelData] Proxying to: ${backendUrl}`);
     
