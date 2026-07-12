@@ -47,12 +47,10 @@ export default function Dashboard() {
 
   // Load data for selected site
   const loadData = useCallback(async () => {
-  const now = Date.now();
-  if (lastFetchTimestampRef.current && now - lastFetchTimestampRef.current < 1000) {
-    return; // throttle to 1 request per second
-  }
-  setLoading(true);
-  setError(null);
+    const now = Date.now();
+    if (lastFetchTimestampRef.current && now - lastFetchTimestampRef.current < 1000) {
+      return; // throttle to 1 request per second
+    }
     if (!selectedIp) return;
     setLoading(true);
     setError(null);
