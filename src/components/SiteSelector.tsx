@@ -6,7 +6,7 @@ interface Props {
   sites: Site[];
   selected: string;
   onChange: (ip: string) => void;
-  siteStatuses?: { [key: string]: 'live' | 'not-found' | 'checking' };
+  siteStatuses?: { [key: string]: 'live' | 'no-data' | 'not-found' | 'checking' };
 }
 
 export default function SiteSelector({ sites, selected, onChange, siteStatuses }: Props) {
@@ -23,7 +23,7 @@ export default function SiteSelector({ sites, selected, onChange, siteStatuses }
               flex items-center gap-2 px-4 py-2 rounded-lg cursor-pointer select-none transition-all
               ${isSelected 
                 ? 'bg-blue-600 text-white shadow-lg scale-105' 
-                : status === 'not-found'
+                : status === 'not-found' || status === 'no-data'
                 ? 'bg-gray-200 dark:bg-gray-700 opacity-50'
                 : 'bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700'}
             `}
@@ -34,13 +34,14 @@ export default function SiteSelector({ sites, selected, onChange, siteStatuses }
               value={site.ip}
               checked={isSelected}
               onChange={() => onChange(site.ip)}
-              className={`w-4 h-4 ${status === 'not-found' ? 'accent-red-600' : 'accent-blue-500'}`}
-              disabled={status === 'not-found' && !isSelected}
+              className={`w-4 h-4 ${status === 'not-found' || status === 'no-data' ? 'accent-red-600' : 'accent-blue-500'}`}
+              disabled={(status === 'not-found' || status === 'no-data') && !isSelected}
             />
             
             {/* Status Icon */}
             <span className="text-lg">
               {status === 'live' && '🟢'}
+              {status === 'no-data' && '🔴'}
               {status === 'not-found' && '⚪'}
               {status === 'checking' && '🔄'}
             </span>

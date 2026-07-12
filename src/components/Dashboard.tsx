@@ -23,7 +23,7 @@ export default function Dashboard() {
   const [fetching, setFetching] = useState(false);
   const [lastFetchTime, setLastFetchTime] = useState<Date | null>(null);
   const [timeRange, setTimeRange] = useState<[number, number] | null>(null);
-  const [siteStatuses, setSiteStatuses] = useState<{ [key: string]: 'live' | 'not-found' | 'checking' }>({});
+  const [siteStatuses, setSiteStatuses] = useState<{ [key: string]: 'live' | 'no-data' | 'not-found' | 'checking' }>({});
 
   // Load sites
   useEffect(() => {
@@ -83,7 +83,10 @@ export default function Dashboard() {
       lastFetchTimestampRef.current = now;
       setLastFetchTime(new Date());
       if (selectedSite) {
-        setSiteStatuses(prev => ({ ...prev, [selectedIp]: 'live' }));
+        setSiteStatuses(prev => ({ 
+          ...prev, 
+          [selectedIp]: data.length > 0 ? 'live' : 'no-data' 
+        }));
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
