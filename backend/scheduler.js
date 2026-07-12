@@ -3,6 +3,11 @@ const INTERVAL_MS = 300000; // 5 minutes
 let intervalId = null;
 let lastFetchTime = null;
 
+// Sleep utility
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 async function fetchAll(sites, fetchTowerData, dataStore, saveData) {
   lastFetchTime = new Date().toISOString();
   console.log(`[Scheduler] Fetching ${sites.length} sites at ${lastFetchTime}`);
@@ -26,6 +31,11 @@ async function fetchAll(sites, fetchTowerData, dataStore, saveData) {
   const ok = results.filter(r => r.status === 'fulfilled' && r.value.status === 'ok').length;
   const fail = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && r.value.status === 'error')).length;
   console.log(`[Scheduler] Done: ${ok} ok, ${fail} failed`);
+  
+  // Sleep 5 minutes after collecting data
+  console.log(`[Scheduler] Sleeping for 5 minutes...`);
+  await sleep(INTERVAL_MS);
+  console.log(`[Scheduler] Woke up, ready for next fetch`);
 }
 
 function start(loadSites, fetchTowerData, dataStore, saveData) {
