@@ -111,13 +111,19 @@ const loadDataRef = useRef(loadData);
   // Auto-poll every 5 minutes (stable interval)
   useEffect(() => {
     console.log(`[Dashboard] Starting poll interval for ${selectedIp}`);
+    console.log(`[Dashboard] POLL_MS = ${POLL_MS}ms = ${POLL_MS/1000}s`);
     const interval = setInterval(() => {
       console.log('[Dashboard] Polling...');
       if (selectedIp) {
+        console.log('[Dashboard] Calling loadData...');
         loadDataRef.current();
       }
     }, POLL_MS);
-    return () => clearInterval(interval);
+    console.log('[Dashboard] Interval ID:', interval);
+    return () => {
+      console.log('[Dashboard] Clearing interval');
+      clearInterval(interval);
+    };
   }, [selectedIp]); // Only depend on selectedIp
 
   // Initialize time range to full data range
