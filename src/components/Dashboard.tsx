@@ -42,7 +42,7 @@ export default function Dashboard() {
       .catch(() => setSites([]));
   }, [selectedIp]);
 
-  // Load data for selected site (fetch in chunks)
+  // Load data for selected site (fetch in chunks) - v2
   const loadData = useCallback(async () => {
     if (!selectedIp) return;
     setLoading(true);
