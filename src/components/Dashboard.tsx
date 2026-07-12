@@ -173,7 +173,7 @@ export default function Dashboard() {
             setFetching(false);
             setError(err instanceof Error ? err.message : String(err));
           }
-        }, 2000); // Poll every 2s
+        }, 60000); // Poll every 60s
         
         // Timeout after 5 minutes
         setTimeout(() => {
