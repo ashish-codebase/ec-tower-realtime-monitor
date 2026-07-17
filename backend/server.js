@@ -9,17 +9,22 @@ require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
-const REDIS_URL = process.env.REDIS_URL;
+const REDIS_URL = process.env.REDIS_URL || process.env.ec_live_db_REDIS_URL;
 let redisClient = null;
 
 async function initRedis() {
-  if (!REDIS_URL) return;
+  if (!REDIS_URL) {
+    console.warn('[Redis] No Redis URL set; data will fall back to local disk storage only.');
+    return;
+  }
+
+  console.log('[Redis] Using Redis URL from', process.env.REDIS_URL ? 'REDIS_URL' : 'ec_live_db_REDIS_URL');
   redisClient = createClient({ url: REDIS_URL });
   redisClient.on('error', (err) => {
     console.error('[Redis] Client error:', err);
   });
   await redisClient.connect();
-  console.log('[Redis] Connected to', REDIS_URL);
+  console.log('[Redis] Connected to Redis at', REDIS_URL);
 }
 
 function getRedisKey(ip) {

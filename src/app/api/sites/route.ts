@@ -1,32 +1,26 @@
 import { NextResponse } from 'next/server';
+import { promises as fs } from 'fs';
+import path from 'path';
 
-const RENDER_BACKEND = process.env.RENDER_BACKEND_URL || (process.env.NODE_ENV === 'development'
-  ? 'http://localhost:3001'
-  : 'https://ec-tower-backend.onrender.com');
+async function loadSitesFromCsv() {
+  try {
+    const csvPath = path.join(process.cwd(), 'site_name_ip_address.csv');
+    const content = await fs.readFile(csvPath, 'utf-8');
+    const sites = [];
+    for (const line of content.split('\n')) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      const [name, ip] = trimmed.split(',').map((s) => s.trim());
+      if (name && ip) sites.push({ name, ip });
+    }
+    return sites;
+  } catch (err) {
+    console.error('[Sites] CSV load error:', err);
+    return [];
+  }
+}
 
 export async function GET() {
-  try {
-    const res = await fetch(`${RENDER_BACKEND}/api/sites`, {
-      signal: AbortSignal.timeout(10000)
-    });
-    
-    if (!res.ok) {
-      const text = await res.text();
-      console.error(`Backend error ${res.status}:`, text.substring(0, 200));
-      return NextResponse.json({ sites: [] }, { status: 502 });
-    }
-    
-    const contentType = res.headers.get('content-type');
-    if (!contentType || !contentType.includes('application/json')) {
-      const text = await res.text();
-      console.error('Backend returned non-JSON:', text.substring(0, 200));
-      return NextResponse.json({ sites: [] }, { status: 502 });
-    }
-    
-    return NextResponse.json(await res.json());
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error('Fetch error:', msg);
-    return NextResponse.json({ sites: [] }, { status: 502 });
-  }
+  const sites = await loadSitesFromCsv();
+  return NextResponse.json({ sites });
 }

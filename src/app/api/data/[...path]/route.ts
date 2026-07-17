@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { promises as fs } from 'fs';
 import path from 'path';
+import { createClient, type RedisClientType } from 'redis';
 
 // Throttle to limit requests per second per file
 const lastRequestTimes = new Map<string, number>();
@@ -10,6 +11,37 @@ const MAX_REQUESTS_PER_SECOND = 5;
 const dataCache = new Map<string, { content: string; timestamp: number }>();
 const CACHE_TTL = 30000; // 30 seconds cache TTL
 
+let redisClient: RedisClientType | null = null;
+let redisConnected = false;
+
+async function initRedisClient() {
+  if (redisConnected) return redisClient;
+  const REDIS_URL = process.env.REDIS_URL || process.env.ec_live_db_REDIS_URL;
+  if (!REDIS_URL) {
+    console.warn('[Redis] No Redis URL set in API route; will attempt local file fallback.');
+    return null;
+  }
+
+  console.log('[Redis] API route using Redis URL from', process.env.REDIS_URL ? 'REDIS_URL' : 'ec_live_db_REDIS_URL');
+  if (!redisClient) {
+    redisClient = createClient({ url: REDIS_URL });
+    redisClient.on('error', (err: unknown) => {
+      console.error('[Redis] Client error:', err);
+    });
+  }
+
+  try {
+    if (!redisClient.isOpen) {
+      await redisClient.connect();
+    }
+    redisConnected = true;
+    return redisClient;
+  } catch (err) {
+    console.error('[Redis] connect error:', err);
+    return null;
+  }
+}
+
 async function getDataFileFromFileSystem(sitePath: string) {
   try {
     const fileName = sitePath.endsWith('.json') ? sitePath : `${sitePath}.json`;
@@ -18,6 +50,23 @@ async function getDataFileFromFileSystem(sitePath: string) {
     return content;
   } catch (error) {
     return null;
+  }
+}
+
+async function loadSitesFromCsv() {
+  try {
+    const csvPath = path.join(process.cwd(), 'site_name_ip_address.csv');
+    const content = await fs.readFile(csvPath, 'utf-8');
+    const sites = [];
+    for (const line of content.split('\n')) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      const [name, ip] = trimmed.split(',').map((s) => s.trim());
+      if (name && ip) sites.push({ name, ip });
+    }
+    return sites;
+  } catch (err) {
+    return [];
   }
 }
 
@@ -74,34 +123,57 @@ export async function GET(
   }
 
   try {
-    // Normalize route file path to match local JSON filenames
     const normalizedFile = ipFile.endsWith('.json') ? ipFile : `${ipFile}.json`;
+    const siteName = normalizedFile.replace(/\.json$/, '');
+    const sites = await loadSitesFromCsv();
+    const site = sites.find((entry) => entry.name === siteName);
+    const ip = site?.ip;
 
-    // Try to get data from file system first
-    let content = await getDataFileFromFileSystem(normalizedFile);
-    
-    // If not found in file system, try to proxy to backend
+    let content: string | null = null;
+
+    const redisClient = await initRedisClient();
+    if (redisClient && ip) {
+      try {
+        const raw = await redisClient.get(`site:${ip}`);
+        if (raw) {
+          const data = JSON.parse(raw);
+          const limit = Number(request.nextUrl.searchParams.get('limit')) || data.length;
+          const offset = Number(request.nextUrl.searchParams.get('offset')) || 0;
+          const paginated = Array.isArray(data) ? data.slice(offset, offset + limit) : data;
+          content = JSON.stringify(paginated);
+          console.log(`[VercelData] Redis hit for ${siteName} (${ip}), ${paginated.length} points`);
+        }
+      } catch (err) {
+        console.error('[Redis] read error:', err);
+      }
+    }
+
+    if (!content) {
+      content = await getDataFileFromFileSystem(normalizedFile);
+    }
+
     if (!content) {
       const BACKEND_URL = process.env.BACKEND_URL || (process.env.NODE_ENV === 'development'
         ? 'http://localhost:3001'
-        : 'https://ec-tower-backend.onrender.com');
-      const backendUrl = `${BACKEND_URL}/api/data/${normalizedFile}`;
-      
-      console.log(`[VercelData] Proxying to: ${backendUrl}`);
-      
-      const res = await fetch(backendUrl, {
-        signal: AbortSignal.timeout(5000) // 5s timeout for proxy
-      });
-      
-      if (!res.ok) {
-        const body = await res.text().catch(() => '');
-        console.error(`[VercelData] Backend error ${res.status} for ${backendUrl}:`, body);
-        throw new Error(`Backend returned ${res.status}${body ? `: ${body}` : ''}`);
+        : null);
+      if (BACKEND_URL) {
+        const backendUrl = `${BACKEND_URL}/api/data/${normalizedFile}`;
+        console.log(`[VercelData] Proxying to: ${backendUrl}`);
+
+        const res = await fetch(backendUrl, {
+          signal: AbortSignal.timeout(5000) // 5s timeout for proxy
+        });
+
+        if (!res.ok) {
+          const body = await res.text().catch(() => '');
+          console.error(`[VercelData] Backend error ${res.status} for ${backendUrl}:`, body);
+          throw new Error(`Backend returned ${res.status}${body ? `: ${body}` : ''}`);
+        }
+
+        content = await res.text();
       }
-      
-      content = await res.text();
     }
-    
+
     if (!content) {
       return NextResponse.json({ error: 'No data available' }, { status: 404 });
     }
