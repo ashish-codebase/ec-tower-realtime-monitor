@@ -154,7 +154,12 @@ export async function GET(
 
     if (!content) {
       console.warn(`[VercelData] No data found for ${siteName} (${ip || 'unknown ip'}) in Redis or local file`);
-      return NextResponse.json({ error: 'No data available' }, { status: 404 });
+      return new Response(JSON.stringify([]), {
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60'
+        }
+      });
     }
     
     // Add readable timestamps for debugging
