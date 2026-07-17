@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Site, SensorDataPoint } from '@/types';
 import { useSiteData } from '@/hooks/useSiteData';
-import { getSensorGroups } from '@/lib/settings';
+import { buildClusterGroups } from '@/lib/clusterGroups';
 import SiteSelector from './SiteSelector';
 import TimeSeriesChart from './TimeSeriesChart';
 import StatsTable from './StatsTable';
@@ -126,15 +126,17 @@ const loadDataRef = useRef(loadData);
     };
   }, [selectedIp]); // Only depend on selectedIp
 
-  // Initialize time range to full data range
+  // Initialize time range to full data range whenever the current data changes
   useEffect(() => {
-    if (data.length > 0 && !timeRange) {
+    if (data.length > 0) {
       const timestamps = data.map(p => p.timestamp * 1000);
       const min = Math.min(...timestamps);
       const max = Math.max(...timestamps);
       setTimeRange([min, max]);
+    } else {
+      setTimeRange(null);
     }
-  }, [data, timeRange]);
+  }, [data]);
 
   // Filter data by time range - DISABLED (show all)
   const filteredData = data; // useMemo(() => {
@@ -219,23 +221,7 @@ const loadDataRef = useRef(loadData);
   const selectedSite = sites.find((s) => s.ip === selectedIp);
 
   // Build cluster groups from settings
-  const clusterGroups = useMemo(() => {
-    const groups = getSensorGroups();
-    const clusters = new Map<number, { name: string; keys: string[] }>();
-    const siteName = selectedSite?.name || 'Site';
-    
-    groups.forEach((g) => {
-      if (!clusters.has(g.jenksClass)) {
-        clusters.set(g.jenksClass, {
-          name: siteName,
-          keys: [],
-        });
-      }
-      clusters.get(g.jenksClass)!.keys.push(...g.keys);
-    });
-    
-    return Array.from(clusters.values());
-  }, [selectedSite]);
+  const clusterGroups = useMemo(() => buildClusterGroups(), []);
   
   // Filter clusters to only those with data
   const activeClusters = clusterGroups.filter((c) =>
@@ -300,7 +286,7 @@ const loadDataRef = useRef(loadData);
       {filteredData.length > 0 && activeClusters.length > 0 && (
         <div key={selectedIp} className="space-y-8 mb-8">
           {activeClusters.map((cluster) => (
-            <div key={cluster.name} className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 border border-gray-200 dark:border-gray-700" style={{ minHeight: 300 }}>
+            <div key={cluster.id} className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 border border-gray-200 dark:border-gray-700" style={{ minHeight: 300 }}>
               <TimeSeriesChart 
                 data={filteredData} 
                 sensorKeys={cluster.keys} 
