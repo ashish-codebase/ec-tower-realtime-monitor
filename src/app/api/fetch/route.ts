@@ -6,7 +6,8 @@ const RENDER_BACKEND = process.env.RENDER_BACKEND_URL || (process.env.NODE_ENV =
 
 export async function GET() {
   if (!RENDER_BACKEND) {
-    return NextResponse.json({ error: 'Fetch backend not configured' }, { status: 501 });
+    console.warn('[Fetch] Manual fetch backend not configured');
+    return NextResponse.json({ status: 'disabled', message: 'Manual fetch is not configured in production.' });
   }
 
   try {

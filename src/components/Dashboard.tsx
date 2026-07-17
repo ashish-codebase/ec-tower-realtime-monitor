@@ -147,11 +147,17 @@ const loadDataRef = useRef(loadData);
   //   });
   // }, [data, timeRange]);
 
+  const manualFetchEnabled = Boolean(process.env.NEXT_PUBLIC_RENDER_BACKEND_URL) || process.env.NODE_ENV === 'development';
+
   // Trigger manual fetch (async - returns immediately, polls for completion)
   const handleFetch = async () => {
     setFetching(true);
     setError(null);
     try {
+      if (!manualFetchEnabled) {
+        throw new Error('Manual fetch is not configured for this deployment.');
+      }
+
       // Start fetch (returns immediately)
       const res = await fetch('/api/fetch', {
         signal: AbortSignal.timeout(15000)
@@ -161,7 +167,6 @@ const loadDataRef = useRef(loadData);
         throw new Error(`Backend error: ${res.status}`);
       }
       
-      // Check if response is empty
       const text = await res.text();
       if (!text) {
         throw new Error('Empty response from backend');
@@ -169,6 +174,10 @@ const loadDataRef = useRef(loadData);
       
       const json = JSON.parse(text);
       
+      if (json.status === 'disabled') {
+        throw new Error(json.message || 'Manual fetch is not available.');
+      }
+
       if (json.status === 'running') {
         // Poll for completion via the backend service
         const RENDER_BACKEND = process.env.NEXT_PUBLIC_RENDER_BACKEND_URL || (process.env.NODE_ENV === 'development'
@@ -261,8 +270,9 @@ const loadDataRef = useRef(loadData);
       <div className="mb-4 flex gap-3">
         <button
           onClick={handleFetch}
-          disabled={fetching || loading}
+          disabled={fetching || loading || !manualFetchEnabled}
           className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded text-sm font-medium transition"
+          title={!manualFetchEnabled ? 'Manual fetch is not configured in production' : undefined}
         >
           {fetching ? '⏳ Fetching (polling)...' : loading ? 'Loading...' : '🔄 Fetch Now'}
         </button>
