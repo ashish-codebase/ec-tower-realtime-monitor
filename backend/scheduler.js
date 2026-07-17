@@ -20,7 +20,7 @@ async function fetchAll(sites, fetchTowerData, dataStore, saveData) {
         const existing = dataStore.get(site.ip) || [];
         const combined = [...existing, ...data].slice(-2880);
         dataStore.set(site.ip, combined);
-        if (saveData) saveData(site.ip, combined); // Persist to disk
+        if (saveData) await saveData(site.ip, combined); // Persist to Redis or disk
         return { name: site.name, ip: site.ip, status: 'ok', count: data.length };
       } catch (err) {
         return { name: site.name, ip: site.ip, status: 'error', error: err.message, count: 0 };

@@ -4,9 +4,27 @@ const fs = require('fs');
 const path = require('path');
 const net = require('net');
 const scheduler = require('./scheduler');
+const { createClient } = require('redis');
+require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const REDIS_URL = process.env.REDIS_URL;
+let redisClient = null;
+
+async function initRedis() {
+  if (!REDIS_URL) return;
+  redisClient = createClient({ url: REDIS_URL });
+  redisClient.on('error', (err) => {
+    console.error('[Redis] Client error:', err);
+  });
+  await redisClient.connect();
+  console.log('[Redis] Connected to', REDIS_URL);
+}
+
+function getRedisKey(ip) {
+  return `site:${ip}`;
+}
 
 app.use(cors());
 app.use(express.json());
@@ -23,15 +41,35 @@ app.options('*', (req, res) => {
 const dataStore = new Map();
 const DATA_DIR = path.join(__dirname, 'data');
 
-// Save data to JSON file
-function saveData(ip, data) {
+// Save data to Redis or JSON file
+async function saveData(ip, data) {
+  if (redisClient) {
+    try {
+      await redisClient.set(getRedisKey(ip), JSON.stringify(data));
+      return;
+    } catch (err) {
+      console.error('[Redis] saveData error:', err);
+    }
+  }
+
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
   const filePath = path.join(DATA_DIR, `${ip}.json`);
   fs.writeFileSync(filePath, JSON.stringify(data));
 }
 
-// Load data from JSON file
-function loadData(ip) {
+// Load data from Redis or JSON file
+async function loadData(ip) {
+  if (redisClient) {
+    try {
+      const raw = await redisClient.get(getRedisKey(ip));
+      if (raw) {
+        return JSON.parse(raw);
+      }
+    } catch (err) {
+      console.error('[Redis] loadData error:', err);
+    }
+  }
+
   const filePath = path.join(DATA_DIR, `${ip}.json`);
   if (!fs.existsSync(filePath)) return null;
   try {
@@ -213,7 +251,7 @@ app.post('/api/fetch', async (req, res) => {
         const existing = dataStore.get(site.ip) || [];
         const combined = [...existing, ...data].slice(-2880);
         dataStore.set(site.ip, combined);
-        saveData(site.ip, combined); // Persist to disk
+        await saveData(site.ip, combined); // Persist to Redis or disk
         if (site.name === 'Cora' || site.name === 'Baggs') {
           console.log(`[DEBUG] ${site.name}: ${data.length} new points, ${dataStore.get(site.ip).length} total`);
         }
@@ -257,7 +295,7 @@ app.get('/api/fetch', (req, res) => {
       try {
         const data = await fetchTowerData(site.ip);
         dataStore.set(site.ip, data);
-        saveData(site.ip, data); // Persist to disk
+        await saveData(site.ip, data); // Persist to Redis or disk
         return { name: site.name, ip: site.ip, status: 'ok', count: data.length };
       } catch (err) {
         return { name: site.name, ip: site.ip, status: 'error', error: err.message, count: 0 };
@@ -315,19 +353,28 @@ app.get('/api/status', (req, res) => {
   });
 });
 
-// Load existing data from disk
-const sites = loadSites();
-sites.forEach(site => {
-  const saved = loadData(site.ip);
-  if (saved) {
-    dataStore.set(site.ip, saved.slice(-2880)); // Cap at 2880
-    console.log(`[Init] Loaded ${saved.length} points for ${site.name}`);
+async function initDataStore() {
+  const sites = loadSites();
+  for (const site of sites) {
+    const saved = await loadData(site.ip);
+    if (saved) {
+      dataStore.set(site.ip, saved.slice(-2880)); // Cap at 2880
+      console.log(`[Init] Loaded ${saved.length} points for ${site.name}`);
+    }
   }
-});
+}
 
-// Start scheduler (fetches every 5 minutes)
-scheduler.start(loadSites, fetchTowerData, dataStore, saveData);
+async function startServer() {
+  await initRedis();
+  await initDataStore();
+  scheduler.start(loadSites, fetchTowerData, dataStore, saveData);
 
-app.listen(PORT, () => {
-  console.log(`EC Tower backend running on port ${PORT}`);
+  app.listen(PORT, () => {
+    console.log(`EC Tower backend running on port ${PORT}`);
+  });
+}
+
+startServer().catch(err => {
+  console.error('[Server] Failed to start:', err);
+  process.exit(1);
 });
