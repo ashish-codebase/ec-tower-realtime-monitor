@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 
-const RENDER_BACKEND = process.env.RENDER_BACKEND_URL || 'http://localhost:3001';
+const RENDER_BACKEND = process.env.RENDER_BACKEND_URL || (process.env.NODE_ENV === 'development'
+  ? 'http://localhost:3001'
+  : 'https://ec-tower-backend.onrender.com');
 
 export async function GET() {
   try {

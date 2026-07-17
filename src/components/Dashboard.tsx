@@ -169,7 +169,9 @@ const loadDataRef = useRef(loadData);
       
       if (json.status === 'running') {
         // Poll for completion via the backend service
-        const RENDER_BACKEND = process.env.NEXT_PUBLIC_RENDER_BACKEND_URL || 'http://localhost:3001';
+        const RENDER_BACKEND = process.env.NEXT_PUBLIC_RENDER_BACKEND_URL || (process.env.NODE_ENV === 'development'
+          ? 'http://localhost:3001'
+          : 'https://ec-tower-backend.onrender.com');
         const pollInterval = setInterval(async () => {
           try {
             const statusRes = await fetch(`${RENDER_BACKEND}/api/status`, {

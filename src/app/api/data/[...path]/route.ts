@@ -77,7 +77,9 @@ export async function GET(
     
     // If not found in file system, try to proxy to backend
     if (!content) {
-      const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3001';
+      const BACKEND_URL = process.env.BACKEND_URL || (process.env.NODE_ENV === 'development'
+        ? 'http://localhost:3001'
+        : 'https://ec-tower-backend.onrender.com');
       const backendUrl = `${BACKEND_URL}/api/data/${ipFile}`;
       
       console.log(`[VercelData] Proxying to: ${backendUrl}`);
