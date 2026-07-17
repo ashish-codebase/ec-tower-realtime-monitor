@@ -2,9 +2,13 @@ import { NextResponse } from 'next/server';
 
 const RENDER_BACKEND = process.env.RENDER_BACKEND_URL || (process.env.NODE_ENV === 'development'
   ? 'http://localhost:3001'
-  : 'https://ec-tower-backend.onrender.com');
+  : null);
 
 export async function GET() {
+  if (!RENDER_BACKEND) {
+    return NextResponse.json({ error: 'Fetch backend not configured' }, { status: 501 });
+  }
+
   try {
     const res = await fetch(`${RENDER_BACKEND}/api/fetch`, {
       signal: AbortSignal.timeout(10000)

@@ -153,28 +153,7 @@ export async function GET(
     }
 
     if (!content) {
-      const BACKEND_URL = process.env.BACKEND_URL || (process.env.NODE_ENV === 'development'
-        ? 'http://localhost:3001'
-        : null);
-      if (BACKEND_URL) {
-        const backendUrl = `${BACKEND_URL}/api/data/${normalizedFile}`;
-        console.log(`[VercelData] Proxying to: ${backendUrl}`);
-
-        const res = await fetch(backendUrl, {
-          signal: AbortSignal.timeout(5000) // 5s timeout for proxy
-        });
-
-        if (!res.ok) {
-          const body = await res.text().catch(() => '');
-          console.error(`[VercelData] Backend error ${res.status} for ${backendUrl}:`, body);
-          throw new Error(`Backend returned ${res.status}${body ? `: ${body}` : ''}`);
-        }
-
-        content = await res.text();
-      }
-    }
-
-    if (!content) {
+      console.warn(`[VercelData] No data found for ${siteName} (${ip || 'unknown ip'}) in Redis or local file`);
       return NextResponse.json({ error: 'No data available' }, { status: 404 });
     }
     

@@ -173,7 +173,13 @@ const loadDataRef = useRef(loadData);
         // Poll for completion via the backend service
         const RENDER_BACKEND = process.env.NEXT_PUBLIC_RENDER_BACKEND_URL || (process.env.NODE_ENV === 'development'
           ? 'http://localhost:3001'
-          : 'https://ec-tower-backend.onrender.com');
+          : null);
+        if (!RENDER_BACKEND) {
+          setFetching(false);
+          setError('Manual fetch is not configured in production.');
+          return;
+        }
+
         const pollInterval = setInterval(async () => {
           try {
             const statusRes = await fetch(`${RENDER_BACKEND}/api/status`, {
