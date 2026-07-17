@@ -72,15 +72,18 @@ export async function GET(
   }
 
   try {
+    // Normalize route file path to match local JSON filenames
+    const normalizedFile = ipFile.endsWith('.json') ? ipFile : `${ipFile}.json`;
+
     // Try to get data from file system first
-    let content = await getDataFileFromFileSystem(ipFile);
+    let content = await getDataFileFromFileSystem(normalizedFile);
     
     // If not found in file system, try to proxy to backend
     if (!content) {
       const BACKEND_URL = process.env.BACKEND_URL || (process.env.NODE_ENV === 'development'
         ? 'http://localhost:3001'
         : 'https://ec-tower-backend.onrender.com');
-      const backendUrl = `${BACKEND_URL}/api/data/${ipFile}`;
+      const backendUrl = `${BACKEND_URL}/api/data/${normalizedFile}`;
       
       console.log(`[VercelData] Proxying to: ${backendUrl}`);
       
@@ -89,7 +92,8 @@ export async function GET(
       });
       
       if (!res.ok) {
-        throw new Error(`Backend returned ${res.status}`);
+        const body = await res.text().catch(() => '');
+        throw new Error(`Backend returned ${res.status}${body ? `: ${body}` : ''}`);
       }
       
       content = await res.text();
