@@ -1,6 +1,7 @@
 import { Site } from '@/types';
 import { fetchTowerData } from './tcp';
 import { appendSiteData, ensureDataDir } from './storage';
+import { appendSiteDataToRedis } from './redis';
 
 const POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 let pollerInterval: NodeJS.Timeout | null = null;
@@ -18,6 +19,7 @@ export function startPolling(sites: Site[]) {
         try {
           const data = await fetchTowerData(site.ip);
           if (data.length > 0) {
+            await appendSiteDataToRedis(site.ip, data);
             appendSiteData(site.ip, data);
           }
         } catch (err) {

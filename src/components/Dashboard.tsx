@@ -147,18 +147,13 @@ const loadDataRef = useRef(loadData);
   //   });
   // }, [data, timeRange]);
 
-  const manualFetchEnabled = Boolean(process.env.NEXT_PUBLIC_RENDER_BACKEND_URL) || process.env.NODE_ENV === 'development';
+  const manualFetchEnabled = true;
 
   // Trigger manual fetch (async - returns immediately, polls for completion)
   const handleFetch = async () => {
     setFetching(true);
     setError(null);
     try {
-      if (!manualFetchEnabled) {
-        throw new Error('Manual fetch is not configured for this deployment.');
-      }
-
-      // Start fetch (returns immediately)
       const res = await fetch('/api/fetch', {
         signal: AbortSignal.timeout(15000)
       });
@@ -167,31 +162,16 @@ const loadDataRef = useRef(loadData);
         throw new Error(`Backend error: ${res.status}`);
       }
       
-      const text = await res.text();
-      if (!text) {
-        throw new Error('Empty response from backend');
-      }
-      
-      const json = JSON.parse(text);
+      const json = await res.json();
       
       if (json.status === 'disabled') {
         throw new Error(json.message || 'Manual fetch is not available.');
       }
 
       if (json.status === 'running') {
-        // Poll for completion via the backend service
-        const RENDER_BACKEND = process.env.NEXT_PUBLIC_RENDER_BACKEND_URL || (process.env.NODE_ENV === 'development'
-          ? 'http://localhost:3001'
-          : null);
-        if (!RENDER_BACKEND) {
-          setFetching(false);
-          setError('Manual fetch is not configured in production.');
-          return;
-        }
-
         const pollInterval = setInterval(async () => {
           try {
-            const statusRes = await fetch(`${RENDER_BACKEND}/api/status`, {
+            const statusRes = await fetch('/api/fetch/status', {
               signal: AbortSignal.timeout(10000)
             });
             
@@ -199,13 +179,7 @@ const loadDataRef = useRef(loadData);
               throw new Error(`Status error: ${statusRes.status}`);
             }
             
-            const statusText = await statusRes.text();
-            if (!statusText) {
-              throw new Error('Empty status response');
-            }
-            
-            const status = JSON.parse(statusText);
-            
+            const status = await statusRes.json();
             if (!status.fetchInProgress) {
               clearInterval(pollInterval);
               setFetching(false);
@@ -216,9 +190,8 @@ const loadDataRef = useRef(loadData);
             setFetching(false);
             setError(err instanceof Error ? err.message : String(err));
           }
-        }, 60000); // Poll every 60s
+        }, 5000); // Poll every 5s
         
-        // Timeout after 5 minutes
         setTimeout(() => {
           clearInterval(pollInterval);
           setFetching(false);

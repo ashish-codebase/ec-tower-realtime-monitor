@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { promises as fs } from 'fs';
 import path from 'path';
-import { createClient, type RedisClientType } from 'redis';
+import { readSiteDataFromRedis } from '@/lib/redis';
 
 // Throttle to limit requests per second per file
 const lastRequestTimes = new Map<string, number>();
@@ -10,37 +10,6 @@ const MAX_REQUESTS_PER_SECOND = 5;
 // Simple in-memory cache for data files
 const dataCache = new Map<string, { content: string; timestamp: number }>();
 const CACHE_TTL = 30000; // 30 seconds cache TTL
-
-let redisClient: RedisClientType | null = null;
-let redisConnected = false;
-
-async function initRedisClient() {
-  if (redisConnected) return redisClient;
-  const REDIS_URL = process.env.REDIS_URL || process.env.ec_live_db_REDIS_URL;
-  if (!REDIS_URL) {
-    console.warn('[Redis] No Redis URL set in API route; will attempt local file fallback.');
-    return null;
-  }
-
-  console.log('[Redis] API route using Redis URL from', process.env.REDIS_URL ? 'REDIS_URL' : 'ec_live_db_REDIS_URL');
-  if (!redisClient) {
-    redisClient = createClient({ url: REDIS_URL });
-    redisClient.on('error', (err: unknown) => {
-      console.error('[Redis] Client error:', err);
-    });
-  }
-
-  try {
-    if (!redisClient.isOpen) {
-      await redisClient.connect();
-    }
-    redisConnected = true;
-    return redisClient;
-  } catch (err) {
-    console.error('[Redis] connect error:', err);
-    return null;
-  }
-}
 
 async function getDataFileFromFileSystem(sitePath: string) {
   try {
@@ -131,20 +100,14 @@ export async function GET(
 
     let content: string | null = null;
 
-    const redisClient = await initRedisClient();
-    if (redisClient && ip) {
-      try {
-        const raw = await redisClient.get(`site:${ip}`);
-        if (raw) {
-          const data = JSON.parse(raw);
-          const limit = Number(request.nextUrl.searchParams.get('limit')) || data.length;
-          const offset = Number(request.nextUrl.searchParams.get('offset')) || 0;
-          const paginated = Array.isArray(data) ? data.slice(offset, offset + limit) : data;
-          content = JSON.stringify(paginated);
-          console.log(`[VercelData] Redis hit for ${siteName} (${ip}), ${paginated.length} points`);
-        }
-      } catch (err) {
-        console.error('[Redis] read error:', err);
+    if (ip) {
+      const redisData = await readSiteDataFromRedis(ip);
+      if (redisData && redisData.length > 0) {
+        const limit = Number(request.nextUrl.searchParams.get('limit')) || redisData.length;
+        const offset = Number(request.nextUrl.searchParams.get('offset')) || 0;
+        const paginated = redisData.slice(offset, offset + limit);
+        content = JSON.stringify(paginated);
+        console.log(`[VercelData] Redis hit for ${siteName} (${ip}), ${paginated.length} points`);
       }
     }
 
