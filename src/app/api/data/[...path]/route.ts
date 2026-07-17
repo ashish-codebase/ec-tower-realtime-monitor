@@ -12,7 +12,8 @@ const CACHE_TTL = 30000; // 30 seconds cache TTL
 
 async function getDataFileFromFileSystem(sitePath: string) {
   try {
-    const filePath = path.join(process.cwd(), 'data', `${sitePath}.json`);
+    const fileName = sitePath.endsWith('.json') ? sitePath : `${sitePath}.json`;
+    const filePath = path.join(process.cwd(), 'data', fileName);
     const content = await fs.readFile(filePath, 'utf-8');
     return content;
   } catch (error) {
@@ -58,11 +59,12 @@ export async function GET(
   }
   lastRequestTimes.set(ipFile, now);
 
-  // Check cache first
-  const cacheKey = `data_${ipFile}`;
+  // Normalize and cache by file name
+  const normalizedFile = ipFile.endsWith('.json') ? ipFile : `${ipFile}.json`;
+  const cacheKey = `data_${normalizedFile}`;
   const cached = dataCache.get(cacheKey);
   if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-    console.log(`[VercelData] Cache hit for ${ipFile}: Returning ${cached.content.length} bytes`);
+    console.log(`[VercelData] Cache hit for ${normalizedFile}: Returning ${cached.content.length} bytes`);
     return new Response(cached.content, {
       headers: {
         'Content-Type': 'application/json',
@@ -93,6 +95,7 @@ export async function GET(
       
       if (!res.ok) {
         const body = await res.text().catch(() => '');
+        console.error(`[VercelData] Backend error ${res.status} for ${backendUrl}:`, body);
         throw new Error(`Backend returned ${res.status}${body ? `: ${body}` : ''}`);
       }
       
@@ -123,7 +126,7 @@ export async function GET(
     
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
-    console.error(`[DEBUG] Error fetching ${ipFile}:`, msg);
+    console.error(`[DEBUG] Error fetching ${ipFile}:`, error);
     return NextResponse.json({ error: `Failed to fetch data: ${msg}` }, { status: 502 });
   }
 }
