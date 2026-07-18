@@ -30,13 +30,11 @@ export async function fetchTowerData(ip: string, siteName: string = 'unknown'): 
         client.write(request);
       });
 
-      const chunks: Buffer[] = [];
+      let raw = '';
       let daqmTimestampsSeen = 0;
       let firstDaqmTs = '';
 
       client.on('data', (chunk: Buffer) => {
-        chunks.push(chunk);
-        
         const text = chunk.toString('utf-8');
         const lines = text.split('\n');
         for (const line of lines) {
@@ -47,27 +45,26 @@ export async function fetchTowerData(ip: string, siteName: string = 'unknown'): 
               firstDaqmTs = ts;
               daqmTimestampsSeen = 1;
             } else if (ts !== firstDaqmTs && daqmTimestampsSeen === 1) {
-              // Second different DAQM timestamp — we have 2 readings, stop
+              // Second different DAQM timestamp — include it, stop
+              raw += line + '\n';
               cleanup();
-              const raw = Buffer.concat(chunks).toString('utf-8');
               const points = parseEcData(raw, siteName);
               resolve(points);
               return;
             }
           }
+          raw += line + '\n';
         }
       });
 
       const timer = setTimeout(() => {
         cleanup();
-        const raw = Buffer.concat(chunks).toString('utf-8');
         const points = parseEcData(raw, siteName);
         resolve(points);
       }, TOTAL_TIMEOUT_MS);
 
       client.on('end', () => {
         cleanup();
-        const raw = Buffer.concat(chunks).toString('utf-8');
         const points = parseEcData(raw, siteName);
         resolve(points);
       });
