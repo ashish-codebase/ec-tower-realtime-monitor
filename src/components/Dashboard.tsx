@@ -9,7 +9,6 @@ import TimeSeriesChart from './TimeSeriesChart';
 import StatsTable from './StatsTable';
 import ErrorBanner from './ErrorBanner';
 import ThemeToggle from './ThemeToggle';
-import TimeRangeSlider from './TimeRangeSlider';
 
 const POLL_MS = 5 * 60 * 1000; // 5 minutes
 
@@ -145,7 +144,7 @@ const loadDataRef = useRef(loadData);
   // Initialize time range to full data range whenever the current data changes
   useEffect(() => {
     if (data.length > 0) {
-      const timestamps = data.map(p => p.timestamp * 1000);
+      const timestamps = data.map(p => p.timestamp); // Already in milliseconds
       const min = Math.min(...timestamps);
       const max = Math.max(...timestamps);
       setTimeRange([min, max]);

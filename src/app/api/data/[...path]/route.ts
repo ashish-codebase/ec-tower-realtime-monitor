@@ -48,8 +48,8 @@ function addReadableTimestamps(content: string): string {
     if (Array.isArray(data)) {
       const transformed = data.map(point => ({
         ...point,
-        timestamp_readable: new Date(point.timestamp * 1000).toISOString(),
-        timestamp_utc: new Date(point.timestamp * 1000).toISOString().replace('T', ' ').replace('Z', ' UTC')
+        timestamp_readable: new Date(point.timestamp).toISOString(), // Already in ms
+        timestamp_utc: new Date(point.timestamp).toISOString().replace('T', ' ').replace('Z', ' UTC')
       }));
       return JSON.stringify(transformed, null, 2);
     }
