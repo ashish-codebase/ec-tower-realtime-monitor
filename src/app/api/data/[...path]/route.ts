@@ -41,16 +41,23 @@ async function loadSitesFromCsv() {
   }
 }
 
-// Convert Unix timestamps to readable ISO strings for debugging
+// Convert timestamps to readable ISO strings using Python converter
+import { timestampToUTC } from '@/lib/timestampConverter';
+
 function addReadableTimestamps(content: string): string {
   try {
     const data = JSON.parse(content);
     if (Array.isArray(data)) {
-      const transformed = data.map(point => ({
-        ...point,
-        timestamp_readable: new Date(point.timestamp).toISOString(), // Already in ms
-        timestamp_utc: new Date(point.timestamp).toISOString().replace('T', ' ').replace('Z', ' UTC')
-      }));
+      const transformed = data.map(point => {
+        const seconds = Math.floor(point.timestamp / 1000);
+        const nanoseconds = (point.timestamp % 1000) * 1000000;
+        const iso = new Date(timestampToUTC(seconds, nanoseconds)).toISOString();
+        return {
+          ...point,
+          timestamp_readable: iso,
+          timestamp_utc: iso.replace('T', ' ').replace('Z', ' UTC')
+        };
+      });
       return JSON.stringify(transformed, null, 2);
     }
     return content;

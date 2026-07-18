@@ -141,17 +141,7 @@ const loadDataRef = useRef(loadData);
     };
   }, [selectedIp, sites]);
 
-  // Initialize time range to full data range whenever the current data changes
-  useEffect(() => {
-    if (data.length > 0) {
-      const timestamps = data.map(p => p.timestamp); // Already in milliseconds
-      const min = Math.min(...timestamps);
-      const max = Math.max(...timestamps);
-      setTimeRange([min, max]);
-    } else {
-      setTimeRange(null);
-    }
-  }, [data]);
+
 
   // Filter data by time range - DISABLED (show all)
   const filteredData = data; // useMemo(() => {

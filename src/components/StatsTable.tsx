@@ -68,10 +68,7 @@ export default function StatsTable({ data }: Props) {
         const converter = conversionMap.get(key);
         const convertedValue = converter ? converter(value) : value;
         
-        // Ensure timestamp is in milliseconds
-        // If timestamp looks like seconds (< 1e12), multiply by 1000
-        // If already milliseconds (> 1e12), use as-is
-        const timestampMs = point.timestamp < 1e12 ? point.timestamp * 1000 : point.timestamp;
+        const timestampMs = point.timestamp;
         
         const comboKey = `${key}__${point.type}`;
         if (!groups.has(comboKey)) {

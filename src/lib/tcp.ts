@@ -1,14 +1,7 @@
 import net from 'net';
 import { TowerDataPoint } from '@/types';
 import { columnRegistry } from './columnRegistry';
-
-// Re-export timestamp converter from Python
-type TimestampToUTC = (seconds: number, nanoseconds: number) => string;
-const timestampToUTC: TimestampToUTC = (seconds, nanoseconds) => {
-    const date = new Date(seconds * 1000);
-    const iso = date.toISOString().replace(/\.\d{3}Z$/, "");
-    return `${iso}.${String(nanoseconds).padStart(9, "0")}Z`;
-};
+import { timestampToUTC } from './timestampConverter';
 
 const PORT = 50111; // Matches Python download_data.py
 const TOTAL_TIMEOUT_MS = 180000; // 180s — 3 min to catch second DAQM row
@@ -195,9 +188,7 @@ function parseEcData(raw: string, siteName: string): TowerDataPoint[] {
   
   // Add sonic data (resampled to 1-min)
   for (const row of sonicResampled) {
-    // Normalize: if SECONDS > 1e12, it's already in milliseconds — convert to seconds
-    const seconds = row.SECONDS > 1e12 ? row.SECONDS / 1000 : row.SECONDS;
-    const timestampMs = new Date(timestampToUTC(seconds, row.NANOSECONDS || 0)).getTime();
+    const timestampMs = new Date(timestampToUTC(row.SECONDS, row.NANOSECONDS || 0)).getTime();
     const { SECONDS: _, NANOSECONDS: __, ...rest } = row;
     combined.push({
       timestamp: timestampMs,
@@ -208,9 +199,7 @@ function parseEcData(raw: string, siteName: string): TowerDataPoint[] {
   
   // Add daqm data
   for (const row of daqmRows) {
-    // Normalize: if SECONDS > 1e12, it's already in milliseconds — convert to seconds
-    const seconds = row.SECONDS > 1e12 ? row.SECONDS / 1000 : row.SECONDS;
-    const timestampMs = new Date(timestampToUTC(seconds, row.NANOSECONDS || 0)).getTime();
+    const timestampMs = new Date(timestampToUTC(row.SECONDS, row.NANOSECONDS || 0)).getTime();
     const { SECONDS: _, NANOSECONDS: __, ...rest } = row;
     combined.push({
       timestamp: timestampMs,

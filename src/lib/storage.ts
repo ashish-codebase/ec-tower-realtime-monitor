@@ -26,12 +26,7 @@ export function readSiteData(ip: string): TowerDataPoint[] {
     const trimmed = line.trim();
     if (!trimmed) continue;
     try {
-      const parsed = JSON.parse(trimmed);
-      // Normalize timestamps: if < 1e12, it's in seconds — convert to ms
-      points.push({
-        ...parsed,
-        timestamp: parsed.timestamp < 1e12 ? parsed.timestamp * 1000 : parsed.timestamp,
-      });
+      points.push(JSON.parse(trimmed));
     } catch {
       // skip malformed
     }
