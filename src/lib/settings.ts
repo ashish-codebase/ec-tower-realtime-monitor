@@ -80,6 +80,11 @@ const ALL_DAQM_COLUMNS = [
   'm+3m-3',
 ];
 
+// Get sensor groups (used by clusterGroups.ts)
+export function getSensorGroups() {
+  return SETTINGS.sensorGroups;
+}
+
 export const SETTINGS: Settings = {
   sensorGroups: [
     {
