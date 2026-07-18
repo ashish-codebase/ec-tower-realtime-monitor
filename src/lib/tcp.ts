@@ -104,6 +104,15 @@ function parseEcData(raw: string, siteName: string): TowerDataPoint[] {
   const rows = body.split('\n').map(line => line.trim()).filter(line => line);
   const parsedRows = rows.map(row => row.split('\t'));
   
+  // Count row types for debugging
+  const rowTypeCount = new Map<string, number>();
+  for (const row of parsedRows) {
+    if (row[0]) {
+      rowTypeCount.set(row[0], (rowTypeCount.get(row[0]) || 0) + 1);
+    }
+  }
+  console.log(`[TCP] Row types: ${JSON.stringify(Object.fromEntries(rowTypeCount))}`);
+  
   // Parse sonic data
   const sonicRows: { SECONDS: number; NANOSECONDS: number; [key: string]: number }[] = [];
   
