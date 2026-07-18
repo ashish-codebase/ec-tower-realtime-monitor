@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EC Tower Live Monitor - Project Guide</title>
+<style>
+  :root {
+    --bg: #ffffff; --text: #1a1a2e; --muted: #6c757d; --border: #dee2e6;
+    --code-bg: #f4f4f8; --accent: #4361ee; --accent-light: rgba(67,97,238,.08);
+    --table-stripe: #f8f9fa; --blockquote-bg: #fff8e1;
+  }
+  .dark {
+    --bg: #1a1a2e; --text: #eaeaea; --muted: #a0a0b0; --border: #2d3748;
+    --code-bg: #16213e; --accent: #60a5fa; --accent-light: rgba(96,165,250,.12);
+    --table-stripe: #16213e; --blockquote-bg: #3d2e00;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+         background: var(--bg); color: var(--text); line-height: 1.7;
+         max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
+  h1 { font-size: 2rem; border-bottom: 2px solid var(--accent); padding-bottom: .4rem; margin: 1.5rem 0 .5rem; }
+  h2 { font-size: 1.5rem; margin: 2rem 0 .6rem; color: var(--accent); }
+  h3 { font-size: 1.15rem; margin: 1.5rem 0 .4rem; }
+  hr { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
+  p { margin: .6rem 0; }
+  blockquote { background: var(--blockquote-bg); border-left: 4px solid var(--accent);
+               padding: .5rem 1rem; margin: 1rem 0; border-radius: 4px; color: var(--muted); font-size:.92rem; }
+  table.data-table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: .88rem; }
+  table.data-table th, table.data-table td { border: 1px solid var(--border); padding: .45rem .7rem; text-align: left; }
+  table.data-table thead th { background: var(--accent); color: #fff; font-weight: 600; }
+  table.data-table tbody tr:nth-child(even) { background: var(--table-stripe); }
+  ul { padding-left: 1.5rem; margin: .5rem 0; }
+  li { margin: .2rem 0; }
+  code.inline-code { background: var(--code-bg); padding: .15rem .4rem; border-radius: 3px;
+                     font-family: 'Fira Code', Consolas, monospace; font-size: .88em; color: var(--accent); }
+  pre { background: var(--code-bg); padding: 1rem; border-radius: 6px; overflow-x: auto; margin: 1rem 0; }
+  code.code-block { font-family: 'Fira Code', Consolas, monospace; font-size: .85em; white-space: pre; color: var(--text); }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  #theme-btn { position: fixed; top: 1rem; right: 1rem; z-index: 99;
+               background: var(--bg); border: 1px solid var(--border); padding: .4rem .7rem;
+               border-radius: 6px; cursor: pointer; font-size: .85rem; color: var(--text); }
+  #theme-btn:hover { background: var(--accent-light); }
+  #toc { background: var(--code-bg); padding: 1rem 1.5rem; border-radius: 8px; margin-bottom: 2rem; }
+  #toc h3 { margin-top: 0; font-size: 1rem; }
+  #toc ul { list-style: none; padding-left: .5rem; }
+  #toc li { margin: .2rem 0; }
+  #toc a { color: var(--accent); font-size: .9rem; }
+  @media print { #theme-btn, #toc { display: none; } body { max-width: 100%; padding: 1rem; } }
+</style>
+</head>
+<body>
+<button id="theme-btn" onclick="toggleTheme()">Dark</button>
+<nav id="toc"><h3>Table of Contents</h3><ul><li><a href="#table-of-contents">Table of Contents</a></li><li><a href="#prerequisites">Prerequisites</a></li><li><a href="#project-structure">Project Structure</a></li><li><a href="#step-by-step-setup">Step-by-Step Setup</a></li><li><a href="#architecture-overview">Architecture Overview</a></li><li><a href="#data-flow">Data Flow</a></li><li><a href="#configuration">Configuration</a></li><li><a href="#components-reference">Components Reference</a></li><li><a href="#api-routes-reference">API Routes Reference</a></li><li><a href="#libraries-reference">Libraries Reference</a></li><li><a href="#running-tests">Running Tests</a></li><li><a href="#deployment">Deployment</a></li><li><a href="#troubleshooting">Troubleshooting</a></li><li><a href="#regenerating-sensor-groups">Regenerating Sensor Groups</a></li></ul></nav>
+<article><h1 id="EC Tower Live Monitor — Full Project Guide">EC Tower Live Monitor — Full Project Guide</h1>
+
+<blockquote><strong>Purpose</strong>: Real-time dashboard for monitoring multiple eddy covariance (EC) tower sites. Built with Next.js, React, Chart.js, and Tailwind CSS. Connects to EC towers via TCP (port 50111), parses half-hourly sensor data, and displays time-series charts grouped by sensor type.</blockquote>
+
+<hr>
+
+<h2 id="Table of Contents">Table of Contents</h2>
+
+<p>1. [Prerequisites](#prerequisites)</p>
+<p>2. [Project Structure](#project-structure)</p>
+<p>3. [Step-by-Step Setup](#step-by-step-setup)</p>
+<p>4. [Architecture Overview](#architecture-overview)</p>
+<p>5. [Data Flow](#data-flow)</p>
+<p>6. [Configuration](#configuration)</p>
+<p>7. [Components Reference](#components-reference)</p>
+<p>8. [API Routes Reference](#api-routes-reference)</p>
+<p>9. [Libraries Reference](#libraries-reference)</p>
+<p>10. [Running Tests](#running-tests)</p>
+<p>11. [Deployment](#deployment)</p>
+<p>12. [Troubleshooting](#troubleshooting)</p>
+
+<hr>
+
+<h2 id="Prerequisites">Prerequisites</h2>
+
+<table class="data-table"><tr><td></td><td>Requirement</td><td>Version</td><td>Notes</td><td></td></tr>
+<tr><td></td><td>----------------</td><td>-------</td><td>-------------------------------------------------</td><td></td></tr>
+<tr><td></td><td>Node.js</td><td>18+</td><td>Required for Next.js 14 App Router</td><td></td></tr>
+<tr><td></td><td>npm</td><td>latest</td><td>Used for dependency management</td><td></td></tr>
+<tr><td></td><td>Network access</td><td>—</td><td>Must reach EC tower IPs on port <strong>50111</strong></td><td></td></tr>
+<tr><td></td><td>Redis (optional)</td><td>—</td><td>For in-memory caching across serverless functions</td><td></td></tr>
+</table>
+
+<hr>
+
+<h2 id="Project Structure">Project Structure</h2>
+
+<p>``<code class="inline-code"></p>
+<p>EC_Tower_Live_React/</p>
+<p>│</p>
+<p>├── src/</p>
+<p>│   ├── app/                          # Next.js App Router</p>
+<p>│   │   ├── api/</p>
+<p>│   │   │   ├── sites/route.ts        # GET — List configured sites from CSV</p>
+<p>│   │   │   ├── data/[...path]/route.ts  # GET — Serve data JSON (Redis fallback)</p>
+<p>│   │   │   ├── fetch/route.ts        # GET — Trigger manual TCP fetch from all towers</p>
+<p>│   │   │   ├── fetch/status/route.ts # GET — Check if fetch is in progress</p>
+<p>│   │   │   ├── admin/clear-redis/route.ts  # POST — Flush Redis DB (auth-protected)</p>
+<p>│   │   │   ├── poll-status/route.ts  # GET — Poll status endpoint</p>
+<p>│   │   │   └── cache-control/route.ts # GET/POST — Cache control</p>
+<p>│   │   ├── layout.tsx                # Root layout + metadata</p>
+<p>│   │   ├── page.tsx                  # Dashboard entry + background poller init</p>
+<p>│   │   └── globals.css               # Tailwind + CSS variables for theming</p>
+<p>│   │</p>
+<p>│   ├── components/</p>
+<p>│   │   ├── Dashboard.tsx             # Main dashboard (stateful, orchestrates everything)</p>
+<p>│   │   ├── SiteSelector.tsx          # Radio-button site picker with status icons</p>
+<p>│   │   ├── TimeSeriesChart.tsx       # Chart.js line charts grouped by sensor type</p>
+<p>│   │   ├── StatsTable.tsx            # Statistics table (min/max/mean/count/duration)</p>
+<p>│   │   ├── ErrorBanner.tsx           # Pulsing red error alert</p>
+<p>│   │   └── ThemeToggle.tsx           # Dark/light theme switcher with localStorage</p>
+<p>│   │</p>
+<p>│   ├── lib/</p>
+<p>│   │   ├── tcp.ts                    # TCP client to EC towers (port 50111)</p>
+<p>│   │   ├── storage.ts               # JSON file read/write (./data/)</p>
+<p>│   │   ├── redis.ts                 # Redis client wrapper (read/write/append)</p>
+<p>│   │   ├── poller.ts                # Background auto-polling service (every 5 min)</p>
+<p>│   │   ├── columnRegistry.ts        # Dynamic column tracking across all towers</p>
+<p>│   │   ├── fetchState.ts            # In-memory fetch-in-progress flag</p>
+<p>│   │   ├── settings.ts              # Sensor group definitions + Jenks classes</p>
+<p>│   │   ├── clusterGroups.ts         # Build K-means cluster groups from settings</p>
+<p>│   │   ├── timestampConverter.ts    # Unix seconds+nanoseconds → ISO string</p>
+<p>│   │   └── chart-init.ts            # Register Chart.js components once</p>
+<p>│   │</p>
+<p>│   ├── hooks/</p>
+<p>│   │   └── useSiteData.ts           # React hook for fetching site data</p>
+<p>│   │</p>
+<p>│   └── types/</p>
+<p>│       └── index.ts                 # TypeScript interfaces (Site, TowerDataPoint, etc.)</p>
+<p>│</p>
+<p>├── backend/                          # Standalone Express server (alternative to Next.js API)</p>
+<p>│   ├── server.js                     # Full Express app with TCP proxy + routes</p>
+<p>│   ├── scheduler.js                  # Periodic fetch scheduler (every 5 min)</p>
+<p>│   └── package.json                  # Express + cors + dotenv deps</p>
+<p>│</p>
+<p>├── data/                             # Tower data files (auto-created, NDJSON format)</p>
+<p>│</p>
+<p>├── scripts/</p>
+<p>│   ├── generate-sensor-groups.js     # K-means clustering → generates settings.ts</p>
+<p>│   └── test-k-values.js              # Test different K values for clustering</p>
+<p>│</p>
+<p>├── python/                           # Python reference implementation</p>
+<p>│   ├── download_data.py              # Parallel TCP fetch (port 50111) → CSV</p>
+<p>│   ├── build_daqm.py                 # Parse EC data into DataFrames</p>
+<p>│   └── timestamp_converter.js        # Timestamp conversion utility</p>
+<p>│</p>
+<p>├── tests/</p>
+<p>│   └── setup.ts                      # Vitest/JSDOM setup (matchMedia mock)</p>
+<p>│</p>
+<p>├── src/lib/__tests__/</p>
+<p>│   ├── tcp.test.ts                   # Unit: module exports</p>
+<p>│   ├── settings.test.ts              # Unit: sensor groups structure</p>
+<p>│   └── data-consistency.test.ts      # Integration: backend API checks</p>
+<p>│</p>
+<p>├── site_name_ip_address.csv          # Site config (name, IP per line)</p>
+<p>├── .env.local                        # Environment variables (Redis URL, admin secret)</p>
+<p>├── package.json                      # Dependencies + scripts</p>
+<p>├── tsconfig.json                     # TypeScript config</p>
+<p>├── next.config.js                    # Next.js config (default export)</p>
+<p>├── tailwind.config.ts                # Tailwind config</p>
+<p>├── postcss.config.js                 # PostCSS plugins</p>
+<p>├── vitest.config.ts                  # Vitest test config</p>
+<p>└── .gitignore                        # Git ignore rules</p>
+</code>`<code class="inline-code">
+
+<hr>
+
+<h2 id="Step-by-Step Setup">Step-by-Step Setup</h2>
+
+<h3 id="Step 1: Clone / Copy Project">Step 1: Clone / Copy Project</h3>
+
+</code>`<code class="inline-code">bash
+<h1 id="On the new machine, copy or clone the project directory">On the new machine, copy or clone the project directory</h1>
+<p>cp -r /path/to/EC_Tower_Live_React ~/EC_Tower_Live_React</p>
+<p>cd ~/EC_Tower_Live_React</p>
+</code>`<code class="inline-code">
+
+<h3 id="Step 2: Install Dependencies">Step 2: Install Dependencies</h3>
+
+</code>`<code class="inline-code">bash
+<p>npm install</p>
+</code>`<code class="inline-code">
+
+<p>This installs:</p>
+
+<ul><li><strong>Runtime</strong>: </code>next<code class="inline-code">, </code>react<code class="inline-code">, </code>react-dom<code class="inline-code">, </code>chart.js<code class="inline-code">, </code>react-chartjs-2<code class="inline-code">, </code>redis<code class="inline-code">, </code>date-fns<code class="inline-code">, </code>ml-kmeans<code class="inline-code"></li>
+<li><strong>Dev</strong>: </code>typescript<code class="inline-code">, </code>tailwindcss<code class="inline-code">, </code>vitest<code class="inline-code">, </code>@testing-library/react<code class="inline-code">, </code>jsdom<code class="inline-code"></li>
+</ul>
+<h3 id="Step 3: Configure Sites">Step 3: Configure Sites</h3>
+
+<p>Edit </code>site_name_ip_address.csv<code class="inline-code"> — one site per line, comma-separated:</p>
+
+</code>`<code class="inline-code">csv
+<p>SiteName,IP_ADDRESS</p>
+<p>Baggs,107.89.240.97</p>
+<p>Boulder,166.230.26.67</p>
+<p>Cora,166.230.26.70</p>
+</code>`<code class="inline-code">
+
+<p>Default sites included:</p>
+
+<table class="data-table"><tr><td></td><td>Site</td><td>IP</td><td></td></tr>
+<tr><td></td><td>---------</td><td>---------------</td><td></td></tr>
+<tr><td></td><td>Baggs</td><td>107.89.240.97</td><td></td></tr>
+<tr><td></td><td>Boulder</td><td>166.230.26.67</td><td></td></tr>
+<tr><td></td><td>Cora</td><td>166.230.26.70</td><td></td></tr>
+<tr><td></td><td>Cortez</td><td>166.165.240.230</td><td></td></tr>
+<tr><td></td><td>Farson</td><td>107.89.242.214</td><td></td></tr>
+<tr><td></td><td>FtBridger</td><td>166.157.227.78</td><td></td></tr>
+<tr><td></td><td>Gunnison</td><td>72.250.43.146</td><td></td></tr>
+<tr><td></td><td>LaPlata</td><td>166.165.240.231</td><td></td></tr>
+<tr><td></td><td>NAPI</td><td>166.250.164.223</td><td></td></tr>
+<tr><td></td><td>Olathe</td><td>166.163.141.138</td><td></td></tr>
+</table>
+
+<h3 id="Step 4: Configure Environment Variables">Step 4: Configure Environment Variables</h3>
+
+<p>Create </code>.env.local<code class="inline-code"> (or </code>.env<code class="inline-code">):</p>
+
+</code>`<code class="inline-code">env
+<h1 id="Redis URL (optional — for serverless caching)">Redis URL (optional — for serverless caching)</h1>
+<p>REDIS_URL=redis://your-redis-host:6379</p>
+
+<h1 id="Admin secret for Redis reset endpoint (optional)">Admin secret for Redis reset endpoint (optional)</h1>
+<p>ADMIN_SECRET=your-secret-here</p>
+</code>`<code class="inline-code">
+
+<h3 id="Step 5: (Optional) Load Historical Data">Step 5: (Optional) Load Historical Data</h3>
+
+<p>To pre-load data from the Python project's JSON files:</p>
+
+</code>`<code class="inline-code">bash
+<p>mkdir -p data</p>
+<p>cp ../166_*.json ./data/</p>
+<h1 id="Or rename: 166_230_26_70.json → data/166_230_26_70.json">Or rename: 166_230_26_70.json → data/166_230_26_70.json</h1>
+</code>`<code class="inline-code">
+
+<p>Data files use <strong>NDJSON</strong> format (one JSON object per line):</p>
+
+</code>`<code class="inline-code">json
+<p>{"timestamp":1783538100000,"type":"sonic","U":2.3,"V":-0.5,"W":0.01,"TEMP":25.4,...}</p>
+<p>{"timestamp":1783538100000,"type":"daqm","TA_1_1_1":22.1,"RH_1_1_1":45.3,...}</p>
+</code>`<code class="inline-code">
+
+<h3 id="Step 6: Start Development Server">Step 6: Start Development Server</h3>
+
+</code>`<code class="inline-code">bash
+<p>npm run dev</p>
+</code>`<code class="inline-code">
+
+<p>Server starts at <strong>http://localhost:3000</strong>.</p>
+
+<h3 id="Step 7: Verify">Step 7: Verify</h3>
+
+<p>1. Open http://localhost:3000</p>
+<p>2. Check error banner — should be clean</p>
+<p>3. Click <strong>"Fetch Now"</strong> to pull data from towers</p>
+<p>4. Charts should appear grouped by sensor type</p>
+<p>5. Toggle dark/light theme</p>
+
+<hr>
+
+<h2 id="Architecture Overview">Architecture Overview</h2>
+
+</code>`<code class="inline-code">
+<p>┌─────────────────────────────────────────────────────────────────┐</p>
+<p>│                        Browser (React UI)                       │</p>
+<p>│  ┌──────────┐ ┌──────────────┐ ┌──────────┐ ┌──────────────┐   │</p>
+<p>│  │Dashboard │ │SiteSelector  │ │Charts    │ │StatsTable    │   │</p>
+<p>│  └────┬─────┘ └──────┬───────┘ └────┬─────┘ └──────┬───────┘   │</p>
+<p>└───────┼───────────────┼──────────────┼──────────────┼───────────┘</p>
+<p>        │               │              │              │</p>
+<p>        │  fetch('/api/sites')         │              │</p>
+<p>        │  fetch('/api/data/...')      │              │</p>
+<p>        │  fetch('/api/fetch')         │              │</p>
+<p>        │                              │              │</p>
+<p>        ▼                              ▼              ▼</p>
+<p>┌─────────────────────────────────────────────────────────────────┐</p>
+<p>│                   Next.js API Routes (Server)                   │</p>
+<p>│  ┌────────────┐ ┌──────────────────┐ ┌──────────────────────┐  │</p>
+<p>│  │ /api/sites │ │ /api/data/[...]/ │ │ /api/fetch           │  │</p>
+<p>│  │ → CSV file │ │ → Redis or JSON  │ │ → TCP proxy → Tower  │  │</p>
+<p>│  └────────────┘ └──────────────────┘ └──────────────────────┘  │</p>
+<p>└─────────────────────────────────────────────────────────────────┘</p>
+<p>        │                              │</p>
+<p>        │         ┌────────────────────┼────────────────────┐</p>
+<p>        ▼         ▼                    ▼                    ▼</p>
+<p>   ┌─────────┐  ┌──────┐      ┌──────────────┐  ┌──────────────┐</p>
+<p>   │Redis DB │  │./data│      │ EC Tower TCP │  │ JSON files   │</p>
+<p>   │(optional)│  │/*.json│      │ Port 50111   │  │ NDJSON       │</p>
+<p>   └─────────┘  └──────┘      └──────────────┘  └──────────────┘</p>
+</code>`<code class="inline-code">
+
+<strong>Key design decisions:</strong>
+
+<ul><li>Browser cannot do raw TCP → Next.js API route proxies TCP connections</li>
+<li>Data cached in Redis (serverless) or JSON files (on-disk)</li>
+<li>Background poller auto-fetches every 5 minutes</li>
+<li>Sensor groups defined in </code>settings.ts<code class="inline-code"> using K-means clustering</li>
+</ul>
+<hr>
+
+<h2 id="Data Flow">Data Flow</h2>
+
+<h3 id="1. Site Discovery">1. Site Discovery</h3>
+
+</code>`<code class="inline-code">
+<p>page.tsx → fetch('/api/sites') → reads site_name_ip_address.csv → returns [{name, ip}]</p>
+</code>`<code class="inline-code">
+
+<h3 id="2. Manual / Auto Fetch">2. Manual / Auto Fetch</h3>
+
+</code>`<code class="inline-code">
+<p>Dashboard.tsx → fetch('/api/fetch') → poller.ts → tcp.ts → net.createConnection(port:50111)</p>
+<p>    ↓</p>
+<p>Tower responds with tab-separated DATASONIC/DATADAQM rows</p>
+<p>    ↓</p>
+<p>parseEcData() → resampleSonicTo1Min() → combine sonic+daqm → TowerDataPoint[]</p>
+<p>    ↓</p>
+<p>appendSiteDataToRedis(ip, data)  → Redis key: site:{ip}</p>
+<p>appendSiteData(ip, data)         → JSONL file: data/{sanitized_ip}.json</p>
+</code>`<code class="inline-code">
+
+<h3 id="3. Data Loading for Display">3. Data Loading for Display</h3>
+
+</code>`<code class="inline-code">
+<p>Dashboard.tsx → fetch(</code>/api/data/${siteName}.json?refresh=true<code class="inline-code">)</p>
+<p>    ↓</p>
+<p>data/[...path]/route.ts → readSiteDataFromRedis(ip)</p>
+<p>    ↓ (if Redis empty)</p>
+<p>    → readFile('data/{sanitized_ip}.json')</p>
+<p>    ↓</p>
+<p>→ addReadableTimestamps() → JSON response with timestamp_readable + timestamp_utc</p>
+<p>    ↓</p>
+<p>→ Dashboard sets state → TimeSeriesChart renders</p>
+</code>`<code class="inline-code">
+
+<h3 id="4. Background Polling">4. Background Polling</h3>
+
+</code>`<code class="inline-code">
+<p>page.tsx → initPoller() → startPolling(sites)</p>
+<p>    ↓</p>
+<p>every 5 minutes:</p>
+<p>    Promise.allSettled(sites.map(site => fetchTowerData(site.ip)))</p>
+<p>    ↓</p>
+<p>store to Redis + JSON file (deduped, capped at 2880 points = 24h @ 5min)</p>
+</code>`<code class="inline-code">
+
+<h3 id="5. Parsing Logic (tcp.ts)">5. Parsing Logic (tcp.ts)</h3>
+
+</code>`<code class="inline-code">
+<p>Raw TCP response:</p>
+<p>  HTTP headers (stripped)</p>
+<p>  DATASONIC\tSECONDS\tNANOSECONDS\tDIAG\tU\tV\tW\tTEMP\tSOS\t...</p>
+<p>  DATADAQMH\t<column headers></p>
+<p>  DATADAQM\tSECONDS\tNANOSECONDS\t<values per column></p>
+<p>  DATADAQM\tSECONDS\tNANOSECONDS\t<values per column>    ← second timestamp = stop signal</p>
+
+<p>Steps:</p>
+<p>  1. Strip HTTP headers (up to \r\n\r\n)</p>
+<p>  2. Parse DATASONIC rows → collect sonic data</p>
+<p>  3. Parse DATADAQMH row → register column names in ColumnRegistry</p>
+<p>  4. Parse DATADAQM rows → map values to column names</p>
+<p>  5. Resample sonic to 1-minute averages (group by minute, calculate mean)</p>
+<p>  6. Combine sonic + daqm, sort by timestamp</p>
+<p>  7. Return TowerDataPoint[]</p>
+</code>`<code class="inline-code">
+
+<hr>
+
+<h2 id="Configuration">Configuration</h2>
+
+<h3 id="Poll Interval">Poll Interval</h3>
+
+<strong>File</strong>: </code>src/lib/poller.ts<code class="inline-code">
+
+</code>`<code class="inline-code">typescript
+<p>const POLL_INTERVAL_MS = 5 <em> 60 </em> 1000; // 5 minutes (change here)</p>
+</code>`<code class="inline-code">
+
+<h3 id="Max Data Points (per site)">Max Data Points (per site)</h3>
+
+<strong>File</strong>: </code>src/lib/storage.ts<code class="inline-code">
+
+</code>`<code class="inline-code">typescript
+<p>const MAX_POINTS = 2880; // 24 hours @ 5-min intervals</p>
+</code>`<code class="inline-code">
+
+<h3 id="Chart Time Axis">Chart Time Axis</h3>
+
+<strong>File</strong>: </code>src/components/TimeSeriesChart.tsx<code class="inline-code">
+
+</code>`<code class="inline-code">typescript
+<p>// X-axis unit auto-scales: hour / day based on data range</p>
+<p>time: { unit: 'hour', ... }</p>
+</code>`<code class="inline-code">
+
+<h3 id="TCP Timeout">TCP Timeout</h3>
+
+<strong>File</strong>: </code>src/lib/tcp.ts<code class="inline-code">
+
+</code>`<code class="inline-code">typescript
+<p>const PORT = 50111;</p>
+<p>const TOTAL_TIMEOUT_MS = 180000; // 3 minutes</p>
+</code>`<code class="inline-code">
+
+<h3 id="Concurrent Connections (Semaphore)">Concurrent Connections (Semaphore)</h3>
+
+<strong>File</strong>: </code>src/lib/tcp.ts<code class="inline-code">
+
+</code>`<code class="inline-code">typescript
+<p>const MAX_CONCURRENT = 10; // Matches Python's MAX_PARALLEL=10</p>
+</code>`<code class="inline-code">
+
+<h3 id="Data Cache TTL">Data Cache TTL</h3>
+
+<strong>File</strong>: </code>src/app/api/data/[...path]/route.ts<code class="inline-code">
+
+</code>`<code class="inline-code">typescript
+<p>const CACHE_TTL = 30000; // 30 seconds</p>
+<p>const MAX_REQUESTS_PER_SECOND = 5;</p>
+</code>`<code class="inline-code">
+
+<h3 id="Sensor Groups (Display)">Sensor Groups (Display)</h3>
+
+<strong>File</strong>: </code>src/lib/settings.ts<code class="inline-code"> — 18 sensor groups with Jenks classes:
+<table class="data-table"><tr><td></td><td>Group</td><td>Keys</td><td>Jenks Class</td><td></td></tr>
+<tr><td></td><td>-------</td><td>------</td><td>-------------</td><td></td></tr>
+<tr><td></td><td>Wind (U, V, W)</td><td>U, V, W</td><td>0</td><td></td></tr>
+<tr><td></td><td>Air Temperature</td><td>TA_1_1_1</td><td>1</td><td></td></tr>
+<tr><td></td><td>Relative Humidity</td><td>RH_1_1_1</td><td>2</td><td></td></tr>
+<tr><td></td><td>Soil Temperature (×9)</td><td>TS_1_1_1 … TS_9_1_1</td><td>3</td><td></td></tr>
+<tr><td></td><td>Thermistor</td><td>THERMISTOR_1_1_1</td><td>4</td><td></td></tr>
+<tr><td></td><td>Soil Moisture (×6)</td><td>SWC_1_1_1 … SWC_6_1_1</td><td>5</td><td></td></tr>
+<tr><td></td><td>Relay Status (×3)</td><td>Relay_1_1_1 …</td><td>6</td><td></td></tr>
+<tr><td></td><td>Heat Flux (×3)</td><td>SHF_1_1_1 …</td><td>7</td><td></td></tr>
+<tr><td></td><td>Heat Flux Sensor (×3)</td><td>SHFSENS_1_1_1 …</td><td>8</td><td></td></tr>
+<tr><td></td><td>Shortwave Radiation</td><td>SWIN, SWOUT</td><td>9</td><td></td></tr>
+<tr><td></td><td>Longwave Radiation</td><td>LWIN, LWOUT</td><td>10</td><td></td></tr>
+<tr><td></td><td>Net Radiation</td><td>RN_1_1_1</td><td>11</td><td></td></tr>
+<tr><td></td><td>Albedo</td><td>ALB_1_1_1</td><td>12</td><td></td></tr>
+<tr><td></td><td>PAR (PPFD)</td><td>PPFD_1_1_1</td><td>13</td><td></td></tr>
+<tr><td></td><td>Rain</td><td>P_RAIN_1_1_1</td><td>14</td><td></td></tr>
+<tr><td></td><td>Battery Voltage</td><td>DRM_V_BATTERY_1_1_1</td><td>15</td><td></td></tr>
+<tr><td></td><td>Main Voltage</td><td>DRM_V_MAIN_1_1_1</td><td>16</td><td></td></tr>
+<tr><td></td><td>Power Status</td><td>DRM_POWER_STATUS_1_1_1</td><td>17</td><td></td></tr>
+</table>
+
+<h3 id="CSS Theme Variables">CSS Theme Variables</h3>
+
+<strong>File</strong>: </code>src/app/globals.css<code class="inline-code">
+
+<p>Light mode (default):</p>
+
+</code>`<code class="inline-code">css
+<p>--bg-primary: #ffffff; --text-primary: #1a1a2e; --chart-line: #4361ee;</p>
+</code>`<code class="inline-code">
+
+<p>Dark mode:</p>
+
+</code>`<code class="inline-code">css
+<p>--bg-primary: #1a1a2e; --text-primary: #eaeaea; --chart-line: #60a5fa;</p>
+</code>`<code class="inline-code">
+
+<hr>
+
+<h2 id="Components Reference">Components Reference</h2>
+
+<h3 id="Dashboard.tsx">Dashboard.tsx</h3>
+
+<strong>Role</strong>: Main orchestrator component. Manages site selection, data loading, fetching, and renders all sub-components.
+
+<strong>State</strong>:
+
+<ul><li></code>sites<code class="inline-code"> — list of configured sites from </code>/api/sites<code class="inline-code"></li>
+<li></code>selectedIp<code class="inline-code"> — currently selected site IP</li>
+<li></code>data<code class="inline-code"> — TowerDataPoint[] for the selected site</li>
+<li></code>loading<code class="inline-code">, </code>error<code class="inline-code">, </code>fetching<code class="inline-code"> — UI state flags</li>
+<li></code>lastFetchTime<code class="inline-code"> — timestamp of last fetch</li>
+<li></code>siteStatuses<code class="inline-code"> — per-site status: </code>'live' | 'no-data' | 'not-found' | 'checking'<code class="inline-code"></li>
+</ul>
+<strong>Key methods</strong>:
+
+<ul><li></code>loadData()<code class="inline-code"> — fetch data from </code>/api/data/{siteName}.json<code class="inline-code"></li>
+<li></code>handleFetch()<code class="inline-code"> — trigger </code>/api/fetch<code class="inline-code">, poll </code>/api/fetch/status<code class="inline-code"> until done</li>
+<li></code>handleResetRedis()<code class="inline-code"> — POST to </code>/api/admin/clear-redis<code class="inline-code"></li>
+</ul>
+<h3 id="SiteSelector.tsx">SiteSelector.tsx</h3>
+
+<strong>Role</strong>: Radio-button group for site selection. Shows status icons (🟢 live, 🔴 no-data, ⚪ not-found, 🔄 checking).
+
+<h3 id="TimeSeriesChart.tsx">TimeSeriesChart.tsx</h3>
+
+<strong>Role</strong>: Renders Chart.js line charts. Groups data by sensor key + type (sonic/daqm). Uses time axis with </code>chartjs-adapter-date-fns<code class="inline-code">.
+
+<strong>Props</strong>: </code>data<code class="inline-code">, </code>sensorKeys<code class="inline-code">, </code>title<code class="inline-code">, </code>timeRange<code class="inline-code">
+
+<h3 id="StatsTable.tsx">StatsTable.tsx</h3>
+
+<strong>Role</strong>: Displays statistics table per sensor key. Columns: ID, Key, Count, Min, Max, Mean, Class, Duration.
+
+<h3 id="ErrorBanner.tsx">ErrorBanner.tsx</h3>
+
+<strong>Role</strong>: Pulsing red banner showing connection errors. Auto-dismiss on close.
+
+<h3 id="ThemeToggle.tsx">ThemeToggle.tsx</h3>
+
+<strong>Role</strong>: Dark/light toggle. Persists choice in </code>localStorage('ec-theme')<code class="inline-code">. Respects </code>prefers-color-scheme<code class="inline-code"> on first visit.
+
+<hr>
+
+<h2 id="API Routes Reference">API Routes Reference</h2>
+
+<h3 id="GET </code>/api/sites<code class="inline-code">">GET </code>/api/sites<code class="inline-code"></h3>
+
+<p>Returns configured sites from CSV.</p>
+
+</code>`<code class="inline-code">json
+<p>{ "sites": [{ "name": "Baggs", "ip": "107.89.240.97" }, ...] }</p>
+</code>`<code class="inline-code">
+
+<h3 id="GET </code>/api/data/{siteName}.json<code class="inline-code">">GET </code>/api/data/{siteName}.json<code class="inline-code"></h3>
+
+<p>Returns data for a site. Checks Redis first, falls back to JSON file.</p>
+
+<ul><li>Query params: </code>?refresh=true<code class="inline-code"> (bypass cache), </code>?limit=N&offset=M<code class="inline-code"> (pagination)</li>
+<li>Response: JSON array of TowerDataPoint objects with added </code>timestamp_readable<code class="inline-code"> and </code>timestamp_utc<code class="inline-code"> fields</li>
+</ul>
+<h3 id="GET </code>/api/fetch<code class="inline-code">">GET </code>/api/fetch<code class="inline-code"></h3>
+
+<p>Triggers manual TCP fetch from all configured towers. Returns immediately with </code>{ status: 'running' }<code class="inline-code">, then processes in background.</p>
+
+</code>`<code class="inline-code">json
+<p>{ "status": "ok", "results": [...], "ok": 5, "fail": 2 }</p>
+</code>`<code class="inline-code">
+
+<h3 id="GET </code>/api/fetch/status<code class="inline-code">">GET </code>/api/fetch/status<code class="inline-code"></h3>
+
+<p>Returns current fetch state.</p>
+
+</code>`<code class="inline-code">json
+<p>{ "fetchInProgress": false }</p>
+</code>`<code class="inline-code">
+
+<h3 id="POST </code>/api/admin/clear-redis<code class="inline-code">">POST </code>/api/admin/clear-redis<code class="inline-code"></h3>
+
+<p>Flushes entire Redis database. Auth-protected via </code>ADMIN_SECRET<code class="inline-code"> Bearer token.</p>
+
+</code>`<code class="inline-code">json
+<p>{ "success": true, "message": "Redis database flushed successfully", "testKey": "verified" }</p>
+</code>`<code class="inline-code">
+
+<hr>
+
+<h2 id="Libraries Reference">Libraries Reference</h2>
+
+<h3 id="tcp.ts — TCP Client">tcp.ts — TCP Client</h3>
+
+<p>Connects to EC towers on port 50111 using Node.js </code>net.Socket<code class="inline-code">. Sends HTTP/1.0 request, collects tab-separated data, stops when second DAQM timestamp appears (matches Python behavior). Implements semaphore for max 10 concurrent connections.</p>
+
+<strong>Key exports</strong>: </code>fetchTowerData(ip: string, siteName?: string): Promise<TowerDataPoint[]><code class="inline-code">
+
+<h3 id="storage.ts — File Storage">storage.ts — File Storage</h3>
+
+<p>Reads/writes NDJSON files in </code>./data/<code class="inline-code">. Deduplicates by </code>timestamp_type<code class="inline-code"> key. Caps at 2880 points (oldest dropped).</p>
+
+<strong>Key exports</strong>: </code>readSiteData(ip)<code class="inline-code">, </code>appendSiteData(ip, newPoints)<code class="inline-code">
+
+<h3 id="redis.ts — Redis Client">redis.ts — Redis Client</h3>
+
+<p>Wrapper around </code>@redis/client<code class="inline-code">. Keys: </code>site:{ip}<code class="inline-code">. Supports read, save, and append-with-dedup.</p>
+
+<strong>Key exports</strong>: </code>readSiteDataFromRedis(ip)<code class="inline-code">, </code>saveSiteDataToRedis(ip, points)<code class="inline-code">, </code>appendSiteDataToRedis(ip, newPoints)<code class="inline-code">
+
+<h3 id="poller.ts — Background Polling">poller.ts — Background Polling</h3>
+
+<p>Starts on server boot (from </code>page.tsx<code class="inline-code">). Runs immediately then every 5 minutes. Fetches from all sites in parallel (</code>Promise.allSettled<code class="inline-code">). Stores to both Redis and file.</p>
+
+<strong>Key exports</strong>: </code>startPolling(sites)<code class="inline-code">, </code>stopPolling()<code class="inline-code">
+
+<h3 id="columnRegistry.ts — Dynamic Column Tracking">columnRegistry.ts — Dynamic Column Tracking</h3>
+
+<p>Collects all unique DAQM columns across all towers. Each tower may have different columns. Missing columns get NaN values.</p>
+
+<strong>Key exports</strong>: </code>columnRegistry<code class="inline-code"> (singleton), </code>getAllDaqmColumns()<code class="inline-code">, </code>siteHasColumn(site, column)<code class="inline-code">
+
+<h3 id="timestampConverter.ts">timestampConverter.ts</h3>
+
+<p>Converts Unix seconds + nanoseconds to ISO string.</p>
+
+<strong>Key export</strong>: </code>timestampToUTC(seconds, nanoseconds): string<code class="inline-code">
+
+<hr>
+
+<h2 id="Running Tests">Running Tests</h2>
+
+</code>`<code class="inline-code">bash
+<h1 id="Run all tests">Run all tests</h1>
+<p>npm test</p>
+
+<h1 id="Watch mode">Watch mode</h1>
+<p>npm run test:watch</p>
+
+<h1 id="With coverage report">With coverage report</h1>
+<p>npm run test:coverage</p>
+</code>`<code class="inline-code">
+
+<strong>Test files</strong>:
+
+<ul><li></code>src/lib/__tests__/tcp.test.ts<code class="inline-code"> — Unit: verifies tcp module exports</li>
+<li></code>src/lib/__tests__/settings.test.ts<code class="inline-code"> — Unit: verifies sensor group structure, unique names, valid jenksClass</li>
+<li></code>src/lib/__tests__/data-consistency.test.ts<code class="inline-code"> — Integration: checks backend API endpoints (requires </code>BACKEND_URL<code class="inline-code">)</li>
+</ul>
+<hr>
+
+<h2 id="Deployment">Deployment</h2>
+
+<h3 id="Development">Development</h3>
+
+</code>`<code class="inline-code">bash
+<p>npm run dev    # Starts on port 3000</p>
+</code>`<code class="inline-code">
+
+<h3 id="Production Build">Production Build</h3>
+
+</code>`<code class="inline-code">bash
+<p>npm run build   # Creates .next/ optimized build</p>
+<p>npm start       # Runs production server on port from .env or 3000</p>
+</code>`<code class="inline-code">
+
+<h3 id="Vercel Deployment">Vercel Deployment</h3>
+
+<p>1. Push to GitHub</p>
+<p>2. Connect repo to Vercel</p>
+<p>3. Set environment variables in Vercel dashboard</p>
+<p>4. Deploy — Next.js auto-builds</p>
+
+<strong>Note</strong>: Poller is disabled during Vercel build (</code>isBuildTime<code class="inline-code"> check). Manual fetch via </code>/api/fetch<code class="inline-code"> works in production.
+
+<h3 id="Standalone Backend Server (Alternative)">Standalone Backend Server (Alternative)</h3>
+
+</code>`<code class="inline-code">bash
+<p>cd backend</p>
+<p>npm install   # express, cors, dotenv, redis</p>
+<p>node server.js  # Runs on port 3001</p>
+</code>`<code class="inline-code">
+
+<p>This Express server includes:</p>
+
+<ul><li>TCP proxy to towers</li>
+<li>Redis/disk storage</li>
+<li>Periodic scheduler (every 5 min)</li>
+<li>API routes: </code>/api/sites<code class="inline-code">, </code>/api/fetch<code class="inline-code">, </code>/api/data/:siteName.json<code class="inline-code">, </code>/api/status<code class="inline-code"></li>
+</ul>
+<hr>
+
+<h2 id="Troubleshooting">Troubleshooting</h2>
+
+<table class="data-table"><tr><td></td><td>Problem</td><td>Solution</td><td></td></tr>
+<tr><td></td><td>------------------------------</td><td>---------------------------------------------------------------------------------</td><td></td></tr>
+<tr><td></td><td>"No data loaded yet"</td><td>Click "Fetch Now". Check tower IPs are reachable (</code>telnet <IP> 50111<code class="inline-code">)</td><td></td></tr>
+<tr><td></td><td>Connection errors on all sites</td><td>Verify network access to tower IPs on port <strong>50111</strong> (not 50311)</td><td></td></tr>
+<tr><td></td><td>Charts not showing data</td><td>Check browser console for parse errors. Verify data files exist in </code>./data/<code class="inline-code"></td><td></td></tr>
+<tr><td></td><td>Redis connection fails</td><td>Set </code>REDIS_URL<code class="inline-code"> in </code>.env.local<code class="inline-code">. App falls back to JSON file storage</td><td></td></tr>
+<tr><td></td><td>Poller not running</td><td>Check </code>page.tsx<code class="inline-code"> initPoller() logs in server console. Not run during Vercel build</td><td></td></tr>
+<tr><td></td><td>Data not updating</td><td>Redis may have stale data. Use "Reset Redis" button or clear manually</td><td></td></tr>
+<tr><td></td><td>Port 3000 already in use</td><td>Change port: </code>next dev -p 3001<code class="inline-code"></td><td></td></tr>
+<tr><td></td><td>Tests failing</td><td>Ensure </code>@testing-library/jest-dom<code class="inline-code"> is installed. Check </code>tests/setup.ts<code class="inline-code"> mocks</td><td></td></tr>
+</table>
+
+<h3 id="Common TCP Issues">Common TCP Issues</h3>
+
+<ul><li>Tower takes >3 min to respond → increase </code>TOTAL_TIMEOUT_MS<code class="inline-code"> in </code>tcp.ts<code class="inline-code"></li>
+<li>Too many concurrent connections → reduce </code>MAX_CONCURRENT<code class="inline-code"> in </code>tcp.ts<code class="inline-code"></li>
+<li>Data not parsing correctly → check column alignment between DAQM header and data rows</li>
+</ul>
+<hr>
+
+<h2 id="Regenerating Sensor Groups">Regenerating Sensor Groups</h2>
+
+<p>If tower columns change, regenerate sensor group settings:</p>
+
+</code>`<code class="inline-code">bash
+<p>node scripts/generate-sensor-groups.js data/your_data_file.json</p>
+</code>`<code class="inline-code">
+
+<p>This runs K-means clustering on actual data and writes new </code>settings.ts` with optimized sensor groups.</p>
+
+<hr>
+
+<em>Generated from EC_Tower_Live_React project analysis.</em>
+</article>
+<script>
+function toggleTheme(){
+  document.documentElement.classList.toggle('dark');
+  var d=document.documentElement.classList.contains('dark');
+  document.getElementById('theme-btn').textContent=d?'Light':'Dark';
+  localStorage.setItem('ec-theme',d?'dark':'light');
+}
+(function(){
+  var s=localStorage.getItem('ec-theme');
+  if(s==='dark' || (!s && matchMedia('(prefers-color-scheme:dark)').matches)){
+    document.documentElement.classList.add('dark');
+    document.getElementById('theme-btn').textContent='Light';
+  }
+})();
+</script>
+</body>
+</html>

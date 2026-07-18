@@ -104,7 +104,8 @@ export default function TimeSeriesChart({ data, sensorKeys, title, timeRange }: 
     const datasets = Object.entries(sensorKeyPoints).map(([key, points], i) => {
       const colors = SENSOR_COLORS[i % SENSOR_COLORS.length];
       return {
-        label: KEY_NAMES[key] || key,
+        // Use raw column name (actual DB column), not interpreted name
+        label: key,
         data: points.sort((a, b) => a.x - b.x),
         borderColor: colors,
         borderWidth: 1.5,
@@ -135,8 +136,10 @@ export default function TimeSeriesChart({ data, sensorKeys, title, timeRange }: 
               if (!items?.length) return '';
               return new Date(items[0].parsed.x).toLocaleString('en-US', { timeZone: 'America/Denver' });
             },
-            label: (item: { parsed: { y: number }; datasetLabel: string }) => {
-              return `${item.datasetLabel}: ${item.parsed.y}`;
+            label: (item: any) => {
+              // Use dataset.label which is the raw column name
+              const label = item.dataset?.label || '';
+              return `${label}: ${item.parsed.y}`;
             },
           },
         },

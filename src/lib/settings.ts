@@ -85,6 +85,31 @@ export function getSensorGroups() {
   return SETTINGS.sensorGroups;
 }
 
+// Map column names to human-readable labels for chart titles
+export const COLUMN_LABELS: Record<string, string> = {
+  'U': 'Wind U',
+  'V': 'Wind V',
+  'W': 'Wind W',
+  'TEMP': 'Sonic Temp',
+  'TA_1_1_1': 'Air Temperature',
+  'RH_1_1_1': 'Relative Humidity',
+  'TS_1_1_1': 'Soil Temp 1',
+  'TS_2_1_1': 'Soil Temp 2',
+  'TS_3_1_1': 'Soil Temp 3',
+  'TS_4_1_1': 'Soil Temp 4',
+  'TS_5_1_1': 'Soil Temp 5',
+  'TS_6_1_1': 'Soil Temp 6',
+  'TS_7_1_1': 'Soil Temp 7',
+  'TS_8_1_1': 'Soil Temp 8',
+  'TS_9_1_1': 'Soil Temp 9',
+  'SWC_1_1_1': 'Soil Moisture 1',
+  'SWC_2_1_1': 'Soil Moisture 2',
+  'SWC_3_1_1': 'Soil Moisture 3',
+  'SWC_4_1_1': 'Soil Moisture 4',
+  'SWC_5_1_1': 'Soil Moisture 5',
+  'SWC_6_1_1': 'Soil Moisture 6',
+};
+
 export const SETTINGS: Settings = {
   sensorGroups: [
     {
