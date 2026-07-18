@@ -134,6 +134,8 @@ function parseEcData(raw: string): TowerDataPoint[] {
   const daqmRows: any[] = [];
   let daqmCount = 0;
   
+  console.log(`[TCP] Total parsed rows: ${parsedRows.length}, sonic: ${sonicRows.length}, daqm header found: ${daqmHeader.length > 0}`);
+  
   for (const row of parsedRows) {
     if (row[0] === 'DATADAQMH') {
       daqmHeader = row.slice(1);
