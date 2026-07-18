@@ -198,13 +198,13 @@ function parseEcData(raw: string, siteName: string): TowerDataPoint[] {
   }
   
   // Add daqm data
+  // Note: DAQM SECONDS/NANOSECONDS are NOT Unix timestamps — they're CR6 internal format
+  // DAQM is collected at the same time as sonic data, so use sonic timestamp as reference
+  const lastSonicTs = sonicResampled.length > 0 ? sonicResampled[sonicResampled.length - 1].timestamp : Date.now();
+  
   for (const row of daqmRows) {
-    // Debug: log raw DAQM timestamp values
-    if (daqmRows.indexOf(row) < 2) {
-      console.log(`[TCP] DAQM raw: SECONDS=${row.SECONDS}, NANOSECONDS=${row.NANOSECONDS}`);
-    }
-    // Combine SECONDS and NANOSECONDS to create precise timestamp (matches Python)
-    const timestampMs = row.SECONDS * 1000 + (row.NANOSECONDS || 0) / 1000000;
+    // Use the last sonic timestamp (DAQM collected at same time)
+    const timestampMs = lastSonicTs;
     const { SECONDS: _, NANOSECONDS: __, ...rest } = row;
     combined.push({
       timestamp: timestampMs,
