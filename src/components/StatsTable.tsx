@@ -2,17 +2,7 @@
 
 import { useMemo } from 'react';
 import { getSensorGroups } from '@/lib/settings';
-
-interface Reading {
-  [key: string]: number;
-}
-
-export interface SensorDataPoint {
-  sensor: string;
-  name: string;
-  timestamp: number;
-  readings: Reading[];
-}
+import { TowerDataPoint } from '@/types';
 
 // Key name lookup table
 const KEY_NAMES: Record<string, string> = {
@@ -46,36 +36,38 @@ function formatKey(key: string, sensor: string): string {
 }
 
 interface Props {
-  data: SensorDataPoint[];
+  data: TowerDataPoint[];
 }
 
 export default function StatsTable({ data }: Props) {
   const stats = useMemo<Stats[]>(() => {
     if (data.length === 0) return [];
 
-    // Group by key_sensor combo
+    // Group by key_type combo
     const groups = new Map<string, { values: number[]; firstTs: number; lastTs: number }>();
 
     for (const point of data) {
-      for (const r of point.readings) {
-        for (const [key, value] of Object.entries(r)) {
-          const comboKey = `${key}_${point.sensor}`;
-          if (!groups.has(comboKey)) {
-            groups.set(comboKey, { values: [], firstTs: point.timestamp * 1000, lastTs: point.timestamp * 1000 });
-          }
-          const g = groups.get(comboKey)!;
-          g.values.push(value);
-          const ts = point.timestamp * 1000;
-          if (ts < g.firstTs) g.firstTs = ts;
-          if (ts > g.lastTs) g.lastTs = ts;
+      for (const [key, value] of Object.entries(point)) {
+        // Skip metadata fields
+        if (['timestamp', 'type', 'SECONDS', 'NANOSECONDS'].includes(key)) continue;
+        if (typeof value !== 'number' || isNaN(value)) continue;
+        
+        const comboKey = `${key}_${point.type}`;
+        if (!groups.has(comboKey)) {
+          groups.set(comboKey, { values: [], firstTs: point.timestamp * 1000, lastTs: point.timestamp * 1000 });
         }
+        const g = groups.get(comboKey)!;
+        g.values.push(value);
+        const ts = point.timestamp * 1000;
+        if (ts < g.firstTs) g.firstTs = ts;
+        if (ts > g.lastTs) g.lastTs = ts;
       }
     }
 
     const result = Array.from(groups.entries())
       .map(([comboKey, g]) => {
         const parts = comboKey.split('_');
-        const sensor = parts[parts.length - 1];
+        const type = parts[parts.length - 1];
         const key = parts.slice(0, -1).join('_');
         const id = parseInt(key, 10);
         const values = g.values;
@@ -85,7 +77,7 @@ export default function StatsTable({ data }: Props) {
         return {
           id,
           key,
-          sensor,
+          sensor: type,
           count: values.length,
           min: Math.min(...values),
           max: Math.max(...values),

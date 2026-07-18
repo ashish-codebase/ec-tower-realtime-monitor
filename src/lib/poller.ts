@@ -1,4 +1,4 @@
-import { Site } from '@/types';
+import { Site, TowerDataPoint } from '@/types';
 import { fetchTowerData } from './tcp';
 import { appendSiteData, ensureDataDir } from './storage';
 import { appendSiteDataToRedis } from './redis';

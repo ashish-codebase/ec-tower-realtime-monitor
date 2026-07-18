@@ -1,5 +1,5 @@
 import { createClient, type RedisClientType } from 'redis';
-import { SensorDataPoint } from '@/types';
+import { TowerDataPoint } from '@/types';
 
 const REDIS_URL = process.env.REDIS_URL || process.env.ec_live_db_REDIS_URL;
 let redisClient: RedisClientType | null = null;
@@ -37,7 +37,7 @@ async function initRedisClient(): Promise<RedisClientType | null> {
   }
 }
 
-export async function readSiteDataFromRedis(ip: string): Promise<SensorDataPoint[] | null> {
+export async function readSiteDataFromRedis(ip: string): Promise<TowerDataPoint[] | null> {
   const client = await initRedisClient();
   if (!client) return null;
 
@@ -52,7 +52,7 @@ export async function readSiteDataFromRedis(ip: string): Promise<SensorDataPoint
   }
 }
 
-export async function saveSiteDataToRedis(ip: string, points: SensorDataPoint[]): Promise<void> {
+export async function saveSiteDataToRedis(ip: string, points: TowerDataPoint[]): Promise<void> {
   const client = await initRedisClient();
   if (!client) return;
 
@@ -63,32 +63,23 @@ export async function saveSiteDataToRedis(ip: string, points: SensorDataPoint[])
   }
 }
 
-export async function appendSiteDataToRedis(ip: string, newPoints: SensorDataPoint[]): Promise<void> {
+export async function appendSiteDataToRedis(ip: string, newPoints: TowerDataPoint[]): Promise<void> {
   if (newPoints.length === 0) return;
   const client = await initRedisClient();
   if (!client) return;
 
   try {
     const raw = await client.get(getRedisKey(ip));
-    const existing: SensorDataPoint[] = raw ? JSON.parse(raw) : [];
+    const existing: TowerDataPoint[] = raw ? JSON.parse(raw) : [];
     const seenKeys = new Set<string>();
 
     for (const point of existing) {
-      for (const reading of point.readings || []) {
-        Object.keys(reading).forEach((key) => {
-          seenKeys.add(`${point.sensor}_${point.timestamp}_${key}`);
-        });
-      }
+      seenKeys.add(`${point.timestamp}_${point.type}`);
     }
 
     const deduped = newPoints.filter((point) => {
-      for (const reading of point.readings || []) {
-        const key = `${point.sensor}_${point.timestamp}_${Object.keys(reading)[0]}`;
-        if (!seenKeys.has(key)) {
-          return true;
-        }
-      }
-      return false;
+      const key = `${point.timestamp}_${point.type}`;
+      return !seenKeys.has(key);
     });
 
     if (deduped.length === 0) return;

@@ -1,7 +1,7 @@
 import net from 'net';
-import { SensorDataPoint } from '@/types';
+import { TowerDataPoint } from '@/types';
 
-const PORT = 50311;
+const PORT = 50111; // Matches Python download_data.py
 const TOTAL_TIMEOUT_MS = 60000; // 60s — matches Python download_data.py
 
 // Semaphore: limit concurrent tower connections (matches Python's MAX_PARALLEL=10)
@@ -19,12 +19,12 @@ function releaseSemaphore(): void {
   activeConnections--;
 }
 
-export async function fetchTowerData(ip: string): Promise<SensorDataPoint[]> {
+export async function fetchTowerData(ip: string): Promise<TowerDataPoint[]> {
   await acquireSemaphore();
   try {
-    return await new Promise<SensorDataPoint[]>((resolve, reject) => {
+    return await new Promise<TowerDataPoint[]>((resolve, reject) => {
       const client = net.createConnection({ port: PORT, host: ip }, () => {
-        // Tower responds with sensor data when:
+        // Tower responds with tab-separated data when:
         // - HTTP/1.0 (not 1.1)
         // - Host header includes ip:port
         const request = `GET / HTTP/1.0\r\nHost: ${ip}:${PORT}\r\n\r\n`;
@@ -37,34 +37,25 @@ export async function fetchTowerData(ip: string): Promise<SensorDataPoint[]> {
       client.on('data', (chunk: Buffer) => {
         chunks.push(chunk);
         
-        // Match Python logic: stop when new timestamp detected
+        // Match Python logic: stop when new timestamp detected in DAQM data
         const text = chunk.toString('utf-8');
         const lines = text.split('\n');
         for (const line of lines) {
           const trimmed = line.trim();
-          if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
-            try {
-              const parsed = JSON.parse(trimmed);
-              for (const [sensorNum, value] of Object.entries(parsed)) {
-                if (typeof value === 'object' && value !== null && 'data' in value) {
-                  const dataArr = (value as { data: unknown[] }).data;
-                  if (Array.isArray(dataArr) && dataArr.length >= 2) {
-                    const timestamp = String(dataArr[1]);
-                    if (oldTimestamp !== '' && oldTimestamp !== timestamp) {
-                      // New timestamp detected — stop receiving (matches Python logic)
-                      cleanup();
-                      const raw = Buffer.concat(chunks).toString('utf-8');
-                      const points = parseTowerResponse(raw);
-                      resolve(points || []);
-                      return;
-                    }
-                    oldTimestamp = timestamp;
-                  }
-                }
-              }
-            } catch {
-              // skip malformed JSON
+          if (!trimmed) continue;
+          
+          const parts = trimmed.split('\t');
+          if (parts[0] === 'DATADAQM' && parts.length >= 3) {
+            const timestamp = parts[1];
+            if (oldTimestamp !== '' && oldTimestamp !== timestamp) {
+              // New timestamp detected — stop receiving (matches Python logic)
+              cleanup();
+              const raw = Buffer.concat(chunks).toString('utf-8');
+              const points = parseEcData(raw);
+              resolve(points);
+              return;
             }
+            oldTimestamp = timestamp;
           }
         }
       });
@@ -73,15 +64,15 @@ export async function fetchTowerData(ip: string): Promise<SensorDataPoint[]> {
       const timer = setTimeout(() => {
         cleanup();
         const raw = Buffer.concat(chunks).toString('utf-8');
-        const points = parseTowerResponse(raw);
-        resolve(points || []);
+        const points = parseEcData(raw);
+        resolve(points);
       }, TOTAL_TIMEOUT_MS);
 
       client.on('end', () => {
         cleanup();
         const raw = Buffer.concat(chunks).toString('utf-8');
-        const points = parseTowerResponse(raw);
-        resolve(points || []);
+        const points = parseEcData(raw);
+        resolve(points);
       });
 
       client.on('error', (err) => {
@@ -99,7 +90,7 @@ export async function fetchTowerData(ip: string): Promise<SensorDataPoint[]> {
   }
 }
 
-function parseTowerResponse(raw: string): SensorDataPoint[] | null {
+function parseEcData(raw: string): TowerDataPoint[] {
   // Strip HTTP headers if present (up to first \r\n\r\n)
   const headerEnd = raw.indexOf('\r\n\r\n');
   let body = raw;
@@ -107,48 +98,125 @@ function parseTowerResponse(raw: string): SensorDataPoint[] | null {
     body = raw.substring(headerEnd + 4);
   }
 
-  // Tower sends nested JSON format:
-  // {"1":{"data":["CK-00638",1783652880,{"61":0.387},{"63":13.5},...]}}
-  // {"0":{"data":["CK-00640",1783652880,{"22":-4e-06},{"23":-7e-06},...]}}
-  const points: SensorDataPoint[] = [];
-
-  const lines = body.split('\n');
-  for (const line of lines) {
-    let trimmed = line.trim();
-    if (!trimmed) continue;
-
-    // Find the end of valid JSON by tracking brace depth
-    const jsonEnd = findJsonEnd(trimmed);
-    if (jsonEnd === -1) continue;
-
-    const jsonStr = trimmed.substring(0, jsonEnd);
-    try {
-      const parsed = JSON.parse(jsonStr);
-      // Format: {"sensorNum":{"data":[name,timestamp,{reading1},{reading2},...]}}
-      for (const [sensorNum, value] of Object.entries(parsed)) {
-        if (typeof value === 'object' && value !== null && 'data' in value) {
-          const dataArr = (value as { data: unknown[] }).data;
-          if (Array.isArray(dataArr) && dataArr.length >= 3) {
-            const name = String(dataArr[0]);
-            const timestamp = Number(dataArr[1]);
-            const readings: { [key: string]: number }[] = [];
-            for (let i = 2; i < dataArr.length; i++) {
-              const item = dataArr[i] as { [key: string]: number };
-              if (typeof item === 'object' && item !== null) {
-                readings.push(item);
-              }
-            }
-            points.push({ sensor: sensorNum, name, timestamp, readings });
-          }
-        }
-      }
-    } catch {
-      // skip malformed lines
+  const rows = body.split('\n').map(line => line.trim()).filter(line => line);
+  const parsedRows = rows.map(row => row.split('\t'));
+  
+  // Parse sonic data
+  const sonicRows: { SECONDS: number; NANOSECONDS: number; [key: string]: number }[] = [];
+  
+  for (const row of parsedRows) {
+    if (row[0] === 'DATASONIC') {
+      const data = row.slice(1);
+      const sonicRow: any = {
+        SECONDS: Number(data[0]) || 0,
+        NANOSECONDS: Number(data[1]) || 0,
+        DIAG: Number(data[2]) || 0,
+        U: Number(data[3]) || 0,
+        V: Number(data[4]) || 0,
+        W: Number(data[5]) || 0,
+        SOS: Number(data[6]) || 0,
+        TEMP: Number(data[7]) || 0,
+        AIN1: Number(data[8]) || 0,
+        AIN2: Number(data[9]) || 0,
+        AIN3: Number(data[10]) || 0,
+        AIN4: Number(data[11]) || 0,
+        CHK: Number(data[12]) || 0,
+      };
+      sonicRows.push(sonicRow);
     }
   }
+  
+  // Resample sonic data to 1-minute intervals
+  const sonicResampled = resampleSonicTo1Min(sonicRows);
+  
+  // Parse DAQM data
+  let daqmHeader: string[] = [];
+  const daqmRows: any[] = [];
+  
+  for (const row of parsedRows) {
+    if (row[0] === 'DATADAQMH') {
+      daqmHeader = row.slice(1);
+    } else if (row[0] === 'DATADAQM') {
+      const data = row.slice(1);
+      const daqmRow: any = {
+        SECONDS: Number(data[0]) || 0,
+        NANOSECONDS: Number(data[1]) || 0,
+      };
+      // Add remaining columns dynamically
+      for (let i = 2; i < data.length; i++) {
+        if (daqmHeader[i - 2]) {
+          daqmRow[daqmHeader[i - 2]] = Number(data[i]) || 0;
+        }
+      }
+      daqmRows.push(daqmRow);
+    }
+  }
+  
+  // Combine sonic and daqm data into single array
+  const combined: TowerDataPoint[] = [];
+  
+  // Add sonic data (resampled to 1-min)
+  for (const row of sonicResampled) {
+    combined.push({
+      timestamp: row.SECONDS,
+      type: 'sonic',
+      ...row,
+    });
+  }
+  
+  // Add daqm data
+  for (const row of daqmRows) {
+    combined.push({
+      timestamp: row.SECONDS,
+      type: 'daqm',
+      ...row,
+    });
+  }
+  
+  // Sort by timestamp
+  combined.sort((a, b) => a.timestamp - b.timestamp);
+  return combined;
+}
 
-  if (points.length === 0) return null;
-  return points;
+function resampleSonicTo1Min(sonicRows: { SECONDS: number; NANOSECONDS: number; [key: string]: number }[]): any[] {
+  if (sonicRows.length === 0) return [];
+  
+  // Group by minute
+  const minuteGroups = new Map<number, typeof sonicRows[number][]>();
+  
+  for (const row of sonicRows) {
+    // Convert seconds + nanoseconds to milliseconds
+    const ms = row.SECONDS * 1000 + Math.floor(row.NANOSECONDS / 1000000);
+    const minuteMs = Math.floor(ms / 60000) * 60000;
+    
+    if (!minuteGroups.has(minuteMs)) {
+      minuteGroups.set(minuteMs, []);
+    }
+    minuteGroups.get(minuteMs)!.push(row);
+  }
+  
+  // Calculate averages for each minute
+  const resampled: any[] = [];
+  
+  for (const [minuteMs, rows] of minuteGroups) {
+    const avg: any = {
+      SECONDS: Math.floor(minuteMs / 1000),
+      NANOSECONDS: 0,
+    };
+    
+    // Calculate averages for numeric fields
+    for (const key of Object.keys(rows[0])) {
+      if (key !== 'SECONDS' && key !== 'NANOSECONDS') {
+        avg[key] = rows.reduce((sum, r) => sum + (r[key] || 0), 0) / rows.length;
+      }
+    }
+    
+    resampled.push(avg);
+  }
+  
+  // Sort by timestamp
+  resampled.sort((a, b) => a.SECONDS - b.SECONDS);
+  return resampled;
 }
 
 // Find the end of a valid JSON object by tracking brace depth

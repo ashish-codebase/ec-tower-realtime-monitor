@@ -1,17 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-
-interface Reading {
-  [key: string]: number;
-}
-
-export interface SensorDataPoint {
-  sensor: string;
-  name: string;
-  timestamp: number;
-  readings: Reading[];
-}
+import { TowerDataPoint } from '@/types';
 
 // Key name lookup table
 const KEY_NAMES: Record<string, string> = {
@@ -41,7 +31,7 @@ function formatMstTime(unixSeconds: number): string {
 }
 
 interface Props {
-  data: SensorDataPoint[];
+  data: TowerDataPoint[];
 }
 
 export default function DataTable({ data }: Props) {

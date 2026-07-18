@@ -3,17 +3,6 @@ export interface Site {
   ip: string;
 }
 
-export interface Reading {
-  [key: string]: number;
-}
-
-export interface SensorDataPoint {
-  sensor: string;
-  name: string;
-  timestamp: number;
-  readings: Reading[];
-}
-
 export interface ParsedReading {
   key: string;
   value: number;
@@ -31,4 +20,11 @@ export interface Stats {
   max: number;
   mean: number;
   duration: string;
+}
+
+// Combined data point (sonic + daqm merged by timestamp)
+export interface TowerDataPoint {
+  timestamp: number; // Unix timestamp in seconds
+  type: 'sonic' | 'daqm';
+  [key: string]: number | string;
 }

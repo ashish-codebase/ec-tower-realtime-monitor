@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { SensorDataPoint } from '@/types';
+import { TowerDataPoint } from '@/types';
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 
@@ -14,12 +14,12 @@ function getFilePath(ip: string): string {
   return path.join(DATA_DIR, `${ip.replace(/\./g, '_')}.json`);
 }
 
-export function readSiteData(ip: string): SensorDataPoint[] {
+export function readSiteData(ip: string): TowerDataPoint[] {
   const filePath = getFilePath(ip);
   if (!fs.existsSync(filePath)) return [];
 
   const content = fs.readFileSync(filePath, 'utf-8');
-  const points: SensorDataPoint[] = [];
+  const points: TowerDataPoint[] = [];
 
   for (const line of content.split('\n')) {
     const trimmed = line.trim();
@@ -34,7 +34,7 @@ export function readSiteData(ip: string): SensorDataPoint[] {
   return points;
 }
 
-export function appendSiteData(ip: string, newPoints: SensorDataPoint[]) {
+export function appendSiteData(ip: string, newPoints: TowerDataPoint[]) {
   if (newPoints.length === 0) return;
 
   const filePath = getFilePath(ip);
@@ -42,19 +42,12 @@ export function appendSiteData(ip: string, newPoints: SensorDataPoint[]) {
   const seenKeys = new Set<string>();
 
   for (const p of existing) {
-    for (const r of p.readings || []) {
-      Object.keys(r).forEach((k) => {
-        seenKeys.add(`${p.sensor}_${p.timestamp}_${k}`);
-      });
-    }
+    seenKeys.add(`${p.timestamp}_${p.type}`);
   }
 
   const deduped = newPoints.filter((p) => {
-    for (const r of p.readings || []) {
-      const key = `${p.sensor}_${p.timestamp}_${Object.keys(r)[0]}`;
-      if (!seenKeys.has(key)) return true;
-    }
-    return false;
+    const key = `${p.timestamp}_${p.type}`;
+    return !seenKeys.has(key);
   });
 
   if (deduped.length === 0) return;
@@ -75,6 +68,6 @@ export function appendSiteData(ip: string, newPoints: SensorDataPoint[]) {
   }
 }
 
-export function readAllSiteData(ip: string): SensorDataPoint[] {
+export function readAllSiteData(ip: string): TowerDataPoint[] {
   return readSiteData(ip);
 }

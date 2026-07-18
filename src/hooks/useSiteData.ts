@@ -1,8 +1,8 @@
 import { useState, useRef, useCallback } from 'react';
-import type { SensorDataPoint } from '@/types';
+import type { TowerDataPoint } from '@/types';
 
 export function useSiteData(siteName: string) {
-  const [data, setData] = useState<SensorDataPoint[]>([]);
+  const [data, setData] = useState<TowerDataPoint[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const lastFetchRef = useRef(0);
@@ -24,7 +24,7 @@ export function useSiteData(siteName: string) {
       }
       const json = JSON.parse(text);
       const arr = Array.isArray(json) ? json : json.data || [];
-      setData(arr as SensorDataPoint[]);
+      setData(arr as TowerDataPoint[]);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setError(msg);

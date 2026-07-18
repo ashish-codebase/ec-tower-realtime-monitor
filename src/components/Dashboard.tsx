@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Site, SensorDataPoint } from '@/types';
+import { Site, TowerDataPoint } from '@/types';
 import { useSiteData } from '@/hooks/useSiteData';
 import { buildClusterGroups } from '@/lib/clusterGroups';
 import SiteSelector from './SiteSelector';
@@ -19,7 +19,7 @@ export default function Dashboard() {
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [data, setData] = useState<SensorDataPoint[]>([]);
+  const [data, setData] = useState<TowerDataPoint[]>([]);
   const [fetching, setFetching] = useState(false);
   const [lastFetchTime, setLastFetchTime] = useState<Date | null>(null);
   const [timeRange, setTimeRange] = useState<[number, number] | null>(null);

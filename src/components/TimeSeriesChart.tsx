@@ -4,16 +4,10 @@ import '@/lib/chart-init';
 import { Chart as ChartComponent } from 'react-chartjs-2';
 import 'chartjs-adapter-date-fns';
 import { useMemo } from 'react';
+import { TowerDataPoint } from '@/types';
 
 interface Reading {
   [key: string]: number;
-}
-
-export interface SensorDataPoint {
-  sensor: string;
-  name: string;
-  timestamp: number;
-  readings: Reading[];
 }
 
 const KEY_NAMES: Record<string, string> = {
@@ -35,7 +29,7 @@ const SENSOR_COLORS = [
 ];
 
 interface Props {
-  data: SensorDataPoint[];
+  data: TowerDataPoint[];
   sensorKeys: string[]; // e.g. ['45', '116', '129'] for AirTemp group
   title: string;        // e.g. "Air Temperature"
   timeRange?: [number, number]; // optional [start, end] in ms
@@ -46,39 +40,28 @@ export default function TimeSeriesChart({ data, sensorKeys, title, timeRange }: 
   const config = useMemo(() => {
     if (sensorKeys.length === 0) return null;
 
-    // Group points by sensor-key combo so each DAQM's measurement gets its own line
+    // Group points by type-key combo
     const sensorKeyPoints: Record<string, { x: number; y: number }[]> = {};
-    
-    // Map sensor IDs to DAQM-0, DAQM-1, etc.
-    const sensorMap = new Map<string, string>();
-    let daqmIndex = 0;
-    const getDaqmLabel = (sensorId: string) => {
-      if (!sensorMap.has(sensorId)) {
-        sensorMap.set(sensorId, `DAQM-${daqmIndex++}`);
-      }
-      return sensorMap.get(sensorId)!;
-    };
 
     for (const point of data) {
-      for (const r of point.readings) {
-        for (const key of sensorKeys) {
-          if (key in r && !isNaN(r[key])) {
-            const groupKey = `${point.sensor}|||${key}`;
-            if (!sensorKeyPoints[groupKey]) {
-              sensorKeyPoints[groupKey] = [];
-            }
-            sensorKeyPoints[groupKey].push({ x: point.timestamp * 1000, y: r[key] });
+      for (const key of sensorKeys) {
+        // Check if the key exists in the point (for both old and new format)
+        const value = point[key];
+        if (value !== undefined && !isNaN(value as number)) {
+          const groupKey = `${point.type}|||${key}`;
+          if (!sensorKeyPoints[groupKey]) {
+            sensorKeyPoints[groupKey] = [];
           }
+          sensorKeyPoints[groupKey].push({ x: point.timestamp * 1000, y: value as number });
         }
       }
     }
 
     const datasets = Object.entries(sensorKeyPoints).map(([groupKey, points], i) => {
-      const [sensor, key] = groupKey.split('|||');
-      const daqmLabel = getDaqmLabel(sensor);
+      const [type, key] = groupKey.split('|||');
       const colors = SENSOR_COLORS[i % SENSOR_COLORS.length];
       return {
-        label: `${KEY_NAMES[key] || key} (${daqmLabel})`,
+        label: `${KEY_NAMES[key] || key} (${type})`,
         data: points.sort((a, b) => a.x - b.x),
         borderColor: colors,
         borderWidth: 1.5,
