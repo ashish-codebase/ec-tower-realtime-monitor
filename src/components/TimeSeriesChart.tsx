@@ -62,8 +62,10 @@ export default function TimeSeriesChart({ data, sensorKeys, title, timeRange }: 
           const converter = conversionMap.get(key);
           const convertedValue = converter ? converter(value as number) : (value as number);
           
-          // Ensure timestamp is in milliseconds (Unix seconds * 1000)
-          const timestampMs = point.timestamp > 1e12 ? point.timestamp : point.timestamp * 1000;
+          // Ensure timestamp is in milliseconds
+          // If timestamp looks like seconds (< 1e12), multiply by 1000
+          // If already milliseconds (> 1e12), use as-is
+          const timestampMs = point.timestamp < 1e12 ? point.timestamp * 1000 : point.timestamp;
           
           const groupKey = `${point.type}|||${key}`;
           if (!sensorKeyPoints[groupKey]) {
