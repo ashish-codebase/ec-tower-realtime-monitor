@@ -24,6 +24,8 @@ export default function Dashboard() {
   const [lastFetchTime, setLastFetchTime] = useState<Date | null>(null);
   const [timeRange, setTimeRange] = useState<[number, number] | null>(null);
   const [siteStatuses, setSiteStatuses] = useState<{ [key: string]: 'live' | 'no-data' | 'not-found' | 'checking' }>({});
+  const [resetting, setResetting] = useState(false);
+  const [resetMessage, setResetMessage] = useState<string | null>(null);
 
   // Load sites
   useEffect(() => {
@@ -222,6 +224,42 @@ const loadDataRef = useRef(loadData);
 
   const selectedSite = sites.find((s) => s.ip === selectedIp);
 
+  // Reset Redis database
+  const handleResetRedis = async () => {
+    if (!confirm('⚠️ This will clear ALL cached data from Redis. Are you sure?')) {
+      return;
+    }
+    
+    setResetting(true);
+    setResetMessage(null);
+    try {
+      const adminSecret = process.env.NEXT_PUBLIC_ADMIN_SECRET;
+      const headers: Record<string, string> = {};
+      if (adminSecret) {
+        headers['Authorization'] = `Bearer ${adminSecret}`;
+      }
+      
+      const res = await fetch('/api/admin/clear-redis', {
+        method: 'POST',
+        headers,
+      });
+      
+      const json = await res.json();
+      if (res.ok) {
+        setResetMessage(`✓ ${json.message}`);
+        // Clear local data and reload
+        setData([]);
+        await loadData();
+      } else {
+        setResetMessage(`✗ ${json.error}`);
+      }
+    } catch (err) {
+      setResetMessage(`✗ ${err instanceof Error ? err.message : 'Failed to reset'}`);
+    } finally {
+      setResetting(false);
+    }
+  };
+
   // Build cluster groups from settings
   const clusterGroups = useMemo(() => buildClusterGroups(), []);
   
@@ -263,6 +301,15 @@ const loadDataRef = useRef(loadData);
         >
           {fetching ? '⏳ Fetching (polling)...' : loading ? 'Loading...' : '🔄 Fetch Now'}
         </button>
+        
+        <button
+          onClick={handleResetRedis}
+          disabled={resetting}
+          className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white rounded text-sm font-medium transition"
+        >
+          {resetting ? '⏳ Resetting...' : '🗑️ Reset Redis'}
+        </button>
+        
         <div className="flex flex-col gap-1">
           <span className="text-xs text-gray-500 self-center">Auto-poll every 5 min</span>
           {lastFetchTime && (
@@ -272,6 +319,12 @@ const loadDataRef = useRef(loadData);
           )}
         </div>
       </div>
+      
+      {resetMessage && (
+        <div className={`mb-4 p-3 rounded text-sm ${resetMessage.startsWith('✓') ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+          {resetMessage}
+        </div>
+      )}
 
       {/* Time Range Slider - DISABLED */}
       {/* {data.length > 0 && timeRange && (
