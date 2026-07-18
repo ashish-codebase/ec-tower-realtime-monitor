@@ -228,7 +228,7 @@ const loadDataRef = useRef(loadData);
   // Filter clusters to only those with data
   const activeClusters = clusterGroups.filter((c) =>
     data.some((p) =>
-      p.readings.some((r) => c.keys.some((k) => k in r))
+      c.keys.some((k) => k in p)
     )
   );
 
