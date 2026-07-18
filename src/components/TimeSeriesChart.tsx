@@ -53,6 +53,7 @@ export default function TimeSeriesChart({ data, sensorKeys, title, timeRange }: 
     // Group points by type-key combo
     const sensorKeyPoints: Record<string, { x: number; y: number }[]> = {};
 
+    let debugCount = 0;
     for (const point of data) {
       for (const key of sensorKeys) {
         // Check if the key exists in the point (for both old and new format)
@@ -66,6 +67,12 @@ export default function TimeSeriesChart({ data, sensorKeys, title, timeRange }: 
           // If timestamp looks like seconds (< 1e12), multiply by 1000
           // If already milliseconds (> 1e12), use as-is
           const timestampMs = point.timestamp < 1e12 ? point.timestamp * 1000 : point.timestamp;
+          
+          // Debug: log first few timestamps
+          if (debugCount < 3) {
+            console.log(`[Chart] Point ${debugCount}: timestamp=${point.timestamp}, normalized=${timestampMs}, type=${point.type}`);
+            debugCount++;
+          }
           
           const groupKey = `${point.type}|||${key}`;
           if (!sensorKeyPoints[groupKey]) {
