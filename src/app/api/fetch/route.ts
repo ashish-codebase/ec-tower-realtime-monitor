@@ -31,25 +31,29 @@ export async function GET() {
     return NextResponse.json({ status: 'running' });
   }
 
-  ensureDataDir();
-
-  const sites = await loadSitesFromCsv();
-  if (sites.length === 0) {
-    return NextResponse.json({ error: 'No sites configured' }, { status: 500 });
-  }
-
-  setFetchInProgress(true);
   try {
+    ensureDataDir();
+
+    const sites = await loadSitesFromCsv();
+    if (sites.length === 0) {
+      return NextResponse.json({ error: 'No sites configured' }, { status: 500 });
+    }
+
+    setFetchInProgress(true);
     const results = await Promise.allSettled(
       sites.map(async (site) => {
         try {
+          console.log(`[Fetch] Fetching data from ${site.name} (${site.ip})...`);
           const data = await fetchTowerData(site.ip);
+          console.log(`[Fetch] Got ${data.length} data points from ${site.name}`);
+          
           if (data.length > 0) {
             await appendSiteDataToRedis(site.ip, data);
             appendSiteData(site.ip, data);
           }
           return { name: site.name, ip: site.ip, status: 'ok', count: data.length };
         } catch (err) {
+          console.error(`[Fetch] Error fetching from ${site.name}:`, err);
           return { name: site.name, ip: site.ip, status: 'error', error: err instanceof Error ? err.message : String(err) };
         }
       })
@@ -59,6 +63,9 @@ export async function GET() {
     const fail = results.filter((r) => r.status === 'rejected' || (r.status === 'fulfilled' && r.value.status === 'error')).length;
 
     return NextResponse.json({ status: 'ok', results, ok, fail });
+  } catch (err) {
+    console.error('[Fetch] Fatal error:', err);
+    return NextResponse.json({ error: 'Internal server error', details: err instanceof Error ? err.message : String(err) }, { status: 500 });
   } finally {
     setFetchInProgress(false);
   }
