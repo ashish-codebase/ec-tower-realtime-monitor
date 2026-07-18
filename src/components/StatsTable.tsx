@@ -22,7 +22,7 @@ const KEY_NAMES: Record<string, string> = {
 };
 
 interface Stats {
-  id: number;
+  id: string;
   key: string;
   sensor: string;
   count: number;
