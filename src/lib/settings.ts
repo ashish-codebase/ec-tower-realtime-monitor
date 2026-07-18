@@ -164,14 +164,9 @@ export const SETTINGS: Settings = {
       jenksClass: 8,
     },
     {
-      name: "Shortwave Radiation (SWIN, SWOUT)",
-      keys: ["SWIN_1_1_1", "SWOUT_1_1_1"],
+      name: "Radiation (SWIN, SWOUT, LWIN, LWOUT, PPFD)",
+      keys: ["SWIN_1_1_1", "SWOUT_1_1_1", "LWIN_1_1_1", "LWOUT_1_1_1", "PPFD_1_1_1"],
       jenksClass: 9,
-    },
-    {
-      name: "Longwave Radiation (LWIN, LWOUT)",
-      keys: ["LWIN_1_1_1", "LWOUT_1_1_1"],
-      jenksClass: 10,
     },
     {
       name: "Net Radiation (RN)",
@@ -183,11 +178,7 @@ export const SETTINGS: Settings = {
       keys: ["ALB_1_1_1"],
       jenksClass: 12,
     },
-    {
-      name: "PAR (PPFD)",
-      keys: ["PPFD_1_1_1"],
-      jenksClass: 13,
-    },
+
     {
       name: "Rain (P_RAIN)",
       keys: ["P_RAIN_1_1_1"],
