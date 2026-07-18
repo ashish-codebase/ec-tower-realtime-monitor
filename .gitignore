@@ -35,4 +35,27 @@ next-env.d.ts
 
 # data files (large JSONs)
 /data/
-.env.local
+
+# archives
+*.rar
+*.zip
+*.tar.gz
+*.7z
+
+# temp / intermediate files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# logs
+*.log
+logs/
+
+# exported data
+*.xml
