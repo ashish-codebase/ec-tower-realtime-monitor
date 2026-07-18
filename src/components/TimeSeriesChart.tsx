@@ -72,6 +72,9 @@ export default function TimeSeriesChart({ data, sensorKeys, title, timeRange }: 
       }
     });
 
+    // PPFD -> W/m² conversion (per-key, not group-level)
+    conversionMap.set('PPFD_1_1_1', (v: number) => v * 0.51);
+
     // Group points by type-key combo
     const sensorKeyPoints: Record<string, { x: number; y: number }[]> = {};
 
