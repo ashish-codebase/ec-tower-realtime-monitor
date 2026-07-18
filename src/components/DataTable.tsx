@@ -40,31 +40,32 @@ export default function DataTable({ data }: Props) {
   const [page, setPage] = useState(0);
   const pageSize = 50;
 
-  // Collect all unique key_sensor combos (e.g. "116_0", "118_1")
+  // Collect all unique key_type combos (e.g. "116_sonic", "118_daqm")
   const allKeys = useMemo(() => {
     const keys = new Set<string>();
     for (const p of data) {
-      for (const r of p.readings) {
-        for (const k of Object.keys(r)) {
-          keys.add(`${k}_${p.sensor}`);
-        }
+      for (const k of Object.keys(p)) {
+        // Skip metadata fields
+        if (['timestamp', 'type', 'SECONDS', 'NANOSECONDS'].includes(k)) continue;
+        if (typeof p[k] !== 'number') continue;
+        keys.add(`${k}_${p.type}`);
       }
     }
     return Array.from(keys).sort();
   }, [data]);
 
-  // Flatten to rows — store values under key_sensor keys
+  // Flatten to rows — store values under key_type keys
   const rows = useMemo(() => {
     return data.map(p => {
       const row: Record<string, number | string> = {
         timestamp: p.timestamp,
-        sensor: p.sensor,
-        name: p.name,
+        type: p.type,
       };
-      for (const r of p.readings) {
-        for (const [k, v] of Object.entries(r)) {
-          row[`${k}_${p.sensor}`] = v;
-        }
+      for (const [k, v] of Object.entries(p)) {
+        // Skip metadata fields
+        if (['timestamp', 'type', 'SECONDS', 'NANOSECONDS'].includes(k)) continue;
+        if (typeof v !== 'number') continue;
+        row[`${k}_${p.type}`] = v;
       }
       return row;
     });
