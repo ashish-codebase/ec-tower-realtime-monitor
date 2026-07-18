@@ -146,14 +146,21 @@ function parseEcData(raw: string, siteName: string): TowerDataPoint[] {
   // Resample sonic data to 1-minute intervals
   const sonicResampled = resampleSonicTo1Min(sonicRows);
   
-  // Parse DAQM data
+  // Parse DAQM data — track order in raw stream for timestamp assignment
   let daqmHeader: string[] = [];
-  const daqmRows: any[] = [];
+  interface DaqmWithOrder {
+    row: any;
+    orderIndex: number;
+    lastSonicTs: number | null;
+  }
+  const daqmWithOrder: DaqmWithOrder[] = [];
   let daqmCount = 0;
+  let lastSonicTimestamp: number | null = null;
   
   console.log(`[TCP] Total parsed rows: ${parsedRows.length}, sonic: ${sonicRows.length}, daqm header found: ${daqmHeader.length > 0}`);
   
-  for (const row of parsedRows) {
+  for (let i = 0; i < parsedRows.length; i++) {
+    const row = parsedRows[i];
     if (row[0] === 'DATADAQMH') {
       daqmHeader = row.slice(1);
       // Register columns for this tower
@@ -172,14 +179,20 @@ function parseEcData(raw: string, siteName: string): TowerDataPoint[] {
         NANOSECONDS: Number(data[1]) || 0,
       };
       // Add remaining columns dynamically
-      for (let i = 2; i < data.length; i++) {
-        if (daqmHeader[i - 2]) {
-          const value = Number(data[i]);
+      for (let j = 2; j < data.length; j++) {
+        if (daqmHeader[j - 2]) {
+          const value = Number(data[j]);
           // Use NaN for non-numeric or invalid values
-          daqmRow[daqmHeader[i - 2]] = isNaN(value) ? NaN : value;
+          daqmRow[daqmHeader[j - 2]] = isNaN(value) ? NaN : value;
         }
       }
-      daqmRows.push(daqmRow);
+      daqmWithOrder.push({ row: daqmRow, orderIndex: i, lastSonicTs: lastSonicTimestamp });
+    } else if (row[0] === 'DATASONIC') {
+      // Update last sonic timestamp for subsequent DAQM rows
+      const sonicData = row.slice(1);
+      const sonicSeconds = Number(sonicData[0]) || 0;
+      const sonicNanoseconds = Number(sonicData[1]) || 0;
+      lastSonicTimestamp = new Date(timestampToUTC(sonicSeconds, sonicNanoseconds)).getTime();
     }
   }
   
@@ -197,9 +210,9 @@ function parseEcData(raw: string, siteName: string): TowerDataPoint[] {
     });
   }
   
-  // Add daqm data
-  for (const row of daqmRows) {
-    const timestampMs = new Date(timestampToUTC(row.SECONDS, row.NANOSECONDS || 0)).getTime();
+  // Add daqm data — use stored sonic timestamp from stream order
+  for (const { row, lastSonicTs } of daqmWithOrder) {
+    const timestampMs = lastSonicTs || 0;
     const { SECONDS: _, NANOSECONDS: __, ...rest } = row;
     combined.push({
       timestamp: timestampMs,
