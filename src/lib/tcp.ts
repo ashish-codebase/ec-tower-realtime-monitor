@@ -250,18 +250,7 @@ function parseEcData(raw: string, siteName: string): TowerDataPoint[] {
   }
 
   deduped.sort((a, b) => a.timestamp - b.timestamp);
-
-  // Final: keep only one point per 5-minute window (300,000 ms)
-  // Keeps the last point in each bucket (most recent reading)
-  const FIVE_MIN_MS = 5 * 60 * 1000;
-  const pointsByBucket = new Map<number, TowerDataPoint>();
-  for (const point of deduped) {
-    const bucket = Math.floor(point.timestamp / FIVE_MIN_MS);
-    // Last point in bucket wins
-    pointsByBucket.set(bucket, point);
-  }
-  const finalPoints = Array.from(pointsByBucket.values()).sort((a, b) => a.timestamp - b.timestamp);
-  return finalPoints;
+  return deduped;
 }
 
 function resampleSonicTo1Min(sonicRows: { SECONDS: number; NANOSECONDS: number; [key: string]: number }[]): any[] {

@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { TowerDataPoint } from '@/types';
+import { resampleTo5Min } from './resample';
 
 // Use /tmp in serverless environments (Vercel), local data dir otherwise
 const DATA_DIR = process.env.VERCEL ? '/tmp/ec-tower-data' : path.join(process.cwd(), 'data');
@@ -38,6 +39,9 @@ export function readSiteData(ip: string): TowerDataPoint[] {
 export function appendSiteData(ip: string, newPoints: TowerDataPoint[]) {
   if (newPoints.length === 0) return;
 
+  // Downsample to 5-min intervals before storing
+  const resampled = resampleTo5Min(newPoints);
+
   const filePath = getFilePath(ip);
   const existing = readSiteData(ip);
   const seenKeys = new Set<string>();
@@ -46,7 +50,7 @@ export function appendSiteData(ip: string, newPoints: TowerDataPoint[]) {
     seenKeys.add(`${p.timestamp}`);
   }
 
-  const deduped = newPoints.filter((p) => {
+  const deduped = resampled.filter((p) => {
     const key = `${p.timestamp}`;
     return !seenKeys.has(key);
   });

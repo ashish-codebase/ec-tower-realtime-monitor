@@ -1,5 +1,6 @@
 import { createClient, type RedisClientType } from 'redis';
 import { TowerDataPoint } from '@/types';
+import { resampleTo5Min } from './resample';
 
 const REDIS_URL = process.env.REDIS_URL || process.env.ec_live_db_REDIS_URL;
 let redisClient: RedisClientType | null = null;
@@ -68,6 +69,9 @@ export async function appendSiteDataToRedis(ip: string, newPoints: TowerDataPoin
   const client = await initRedisClient();
   if (!client) return;
 
+  // Downsample to 5-min intervals before storing
+  const resampled = resampleTo5Min(newPoints);
+
   try {
     const raw = await client.get(getRedisKey(ip));
     const existing: TowerDataPoint[] = raw ? JSON.parse(raw) : [];
@@ -77,7 +81,7 @@ export async function appendSiteDataToRedis(ip: string, newPoints: TowerDataPoin
       seenKeys.add(`${point.timestamp}`);
     }
 
-    const deduped = newPoints.filter((point) => {
+    const deduped = resampled.filter((point) => {
       const key = `${point.timestamp}`;
       return !seenKeys.has(key);
     });
