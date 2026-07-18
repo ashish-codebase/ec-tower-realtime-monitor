@@ -17,7 +17,7 @@ export function startPolling(sites: Site[]) {
     try {
       const promises = sites.map(async (site) => {
         try {
-          const data = await fetchTowerData(site.ip);
+          const data = await fetchTowerData(site.ip, site.name);
           if (data.length > 0) {
             await appendSiteDataToRedis(site.ip, data);
             appendSiteData(site.ip, data);

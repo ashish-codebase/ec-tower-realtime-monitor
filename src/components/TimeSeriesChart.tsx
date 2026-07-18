@@ -12,16 +12,38 @@ interface Reading {
 }
 
 const KEY_NAMES: Record<string, string> = {
-  '14': 'Temp', '22': 'WNV', '23': 'WNW', '24': 'WNZ',
-  '34': 'UST', '36': 'H', '43': 'Ustar', '45': 'Tair',
-  '52': 'LE', '54': 'Rn', '61': 'Voltage', '63': 'Current',
-  '70': 'Resistivity', '72': 'Pressure', '79': 'Depth', '81': 'Level',
-  '88': 'Tsoil1', '89': 'Tsoil2', '115': 'CO2_flux',
-  '116': 'T2m', '117': 'wCO2', '118': 'RH', '119': 'wQ',
-  '120': 'Press', '121': 'PAR', '122': 'G', '123': 'SW_down',
-  '124': 'SW_up', '125': 'LW_down', '127': 'LW_up', '128': 'VPD',
-  '129': 'Tair_129', '130': 'Press_130', '131': 'CO2_dens',
-  '132': 'H2O_dens', '210': 'WindSpd', '211': 'WindDir',
+  // Wind
+  'U': 'U (N-S)', 'V': 'V (E-W)', 'W': 'W (vert)',
+  // Temperature
+  'TEMP': 'Sonic Temp', 'TA_1_1_1': 'Air Temp',
+  // Humidity
+  'RH_1_1_1': 'Rel Humidity',
+  // Soil
+  'TS_1_1_1': 'Soil T1', 'TS_2_1_1': 'Soil T2', 'TS_3_1_1': 'Soil T3',
+  'TS_4_1_1': 'Soil T4', 'TS_5_1_1': 'Soil T5', 'TS_6_1_1': 'Soil T6',
+  'TS_7_1_1': 'Soil T7', 'TS_8_1_1': 'Soil T8', 'TS_9_1_1': 'Soil T9',
+  'THERMISTOR_1_1_1': 'Thermistor',
+  // Soil moisture
+  'SWC_1_1_1': 'SWC1', 'SWC_2_1_1': 'SWC2', 'SWC_3_1_1': 'SWC3',
+  'SWC_4_1_1': 'SWC4', 'SWC_5_1_1': 'SWC5', 'SWC_6_1_1': 'SWC6',
+  // Relay
+  'Relay_1_1_1': 'Relay1', 'Relay_2_1_1': 'Relay2', 'Relay_3_1_1': 'Relay3',
+  // Heat flux
+  'SHF_1_1_1': 'HF1', 'SHF_2_1_1': 'HF2', 'SHF_3_1_1': 'HF3',
+  'SHFSENS_1_1_1': 'HFS1', 'SHFSENS_2_1_1': 'HFS2', 'SHFSENS_3_1_1': 'HFS3',
+  // Radiation
+  'SWIN_1_1_1': 'SW_in', 'SWOUT_1_1_1': 'SW_out',
+  'LWIN_1_1_1': 'LW_in', 'LWOUT_1_1_1': 'LW_out',
+  'RN_1_1_1': 'Net Rad',
+  // Albedo
+  'ALB_1_1_1': 'Albedo',
+  // PAR
+  'PPFD_1_1_1': 'PAR',
+  // Rain
+  'P_RAIN_1_1_1': 'Rain',
+  // Power
+  'DRM_V_BATTERY_1_1_1': 'Batt V', 'DRM_V_MAIN_1_1_1': 'Main V',
+  'DRM_POWER_STATUS_1_1_1': 'Pwr Status',
 };
 
 const SENSOR_COLORS = [

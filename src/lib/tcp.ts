@@ -1,5 +1,6 @@
 import net from 'net';
 import { TowerDataPoint } from '@/types';
+import { columnRegistry } from './columnRegistry';
 
 const PORT = 50111; // Matches Python download_data.py
 const TOTAL_TIMEOUT_MS = 60000; // 60s — matches Python download_data.py
@@ -7,6 +8,8 @@ const TOTAL_TIMEOUT_MS = 60000; // 60s — matches Python download_data.py
 // Semaphore: limit concurrent tower connections (matches Python's MAX_PARALLEL=10)
 let activeConnections = 0;
 const MAX_CONCURRENT = 10;
+
+
 
 async function acquireSemaphore(): Promise<void> {
   while (activeConnections >= MAX_CONCURRENT) {
@@ -19,7 +22,7 @@ function releaseSemaphore(): void {
   activeConnections--;
 }
 
-export async function fetchTowerData(ip: string): Promise<TowerDataPoint[]> {
+export async function fetchTowerData(ip: string, siteName: string = 'unknown'): Promise<TowerDataPoint[]> {
   await acquireSemaphore();
   try {
     return await new Promise<TowerDataPoint[]>((resolve, reject) => {
@@ -139,6 +142,8 @@ function parseEcData(raw: string): TowerDataPoint[] {
   for (const row of parsedRows) {
     if (row[0] === 'DATADAQMH') {
       daqmHeader = row.slice(1);
+      // Register columns for this tower
+      columnRegistry.addTowerColumns(siteName, daqmHeader);
       console.log(`[TCP] DAQM header (first 5): ${daqmHeader.slice(0, 5).join(', ')}`);
     } else if (row[0] === 'DATADAQM') {
       const data = row.slice(1);
@@ -155,7 +160,9 @@ function parseEcData(raw: string): TowerDataPoint[] {
       // Add remaining columns dynamically
       for (let i = 2; i < data.length; i++) {
         if (daqmHeader[i - 2]) {
-          daqmRow[daqmHeader[i - 2]] = Number(data[i]) || 0;
+          const value = Number(data[i]);
+          // Use NaN for non-numeric or invalid values
+          daqmRow[daqmHeader[i - 2]] = isNaN(value) ? NaN : value;
         }
       }
       daqmRows.push(daqmRow);

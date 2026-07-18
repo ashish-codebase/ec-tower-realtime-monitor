@@ -44,7 +44,7 @@ export async function GET() {
       sites.map(async (site) => {
         try {
           console.log(`[Fetch] Fetching data from ${site.name} (${site.ip})...`);
-          const data = await fetchTowerData(site.ip);
+          const data = await fetchTowerData(site.ip, site.name);
           console.log(`[Fetch] Got ${data.length} data points from ${site.name}`);
           
           if (data.length > 0) {
