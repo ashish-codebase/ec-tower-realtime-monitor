@@ -5,6 +5,7 @@ import { Chart as ChartComponent } from 'react-chartjs-2';
 import 'chartjs-adapter-date-fns';
 import { useMemo } from 'react';
 import { TowerDataPoint } from '@/types';
+import { getSensorGroups } from '@/lib/settings';
 
 interface Reading {
   [key: string]: number;
@@ -40,6 +41,15 @@ export default function TimeSeriesChart({ data, sensorKeys, title, timeRange }: 
   const config = useMemo(() => {
     if (sensorKeys.length === 0) return null;
 
+    // Get conversion functions from settings
+    const sensorGroups = getSensorGroups();
+    const conversionMap = new Map<string, (value: number) => number>();
+    sensorGroups.forEach(g => {
+      if (g.convert) {
+        g.keys.forEach(key => conversionMap.set(key, g.convert!));
+      }
+    });
+
     // Group points by type-key combo
     const sensorKeyPoints: Record<string, { x: number; y: number }[]> = {};
 
@@ -48,11 +58,15 @@ export default function TimeSeriesChart({ data, sensorKeys, title, timeRange }: 
         // Check if the key exists in the point (for both old and new format)
         const value = point[key];
         if (value !== undefined && !isNaN(value as number)) {
+          // Apply conversion if exists (e.g., PPFD -> W/m²)
+          const converter = conversionMap.get(key);
+          const convertedValue = converter ? converter(value as number) : value;
+          
           const groupKey = `${point.type}|||${key}`;
           if (!sensorKeyPoints[groupKey]) {
             sensorKeyPoints[groupKey] = [];
           }
-          sensorKeyPoints[groupKey].push({ x: point.timestamp * 1000, y: value as number });
+          sensorKeyPoints[groupKey].push({ x: point.timestamp * 1000, y: convertedValue });
         }
       }
     }
