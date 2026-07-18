@@ -3,7 +3,7 @@ import { TowerDataPoint } from '@/types';
 import { columnRegistry } from './columnRegistry';
 
 const PORT = 50111; // Matches Python download_data.py
-const TOTAL_TIMEOUT_MS = 60000; // 60s — matches Python download_data.py
+const TOTAL_TIMEOUT_MS = 180000; // 180s — 3 min to catch second DAQM row
 
 // Semaphore: limit concurrent tower connections (matches Python's MAX_PARALLEL=10)
 let activeConnections = 0;
@@ -40,7 +40,7 @@ export async function fetchTowerData(ip: string, siteName: string = 'unknown'): 
       client.on('data', (chunk: Buffer) => {
         chunks.push(chunk);
         
-        // Optional: Track DAQM timestamps for debugging
+        // Match Python logic: stop when SECOND DATADAQM timestamp appears
         const text = chunk.toString('utf-8');
         const lines = text.split('\n');
         for (const line of lines) {
@@ -50,10 +50,19 @@ export async function fetchTowerData(ip: string, siteName: string = 'unknown'): 
           const parts = trimmed.split('\t');
           if (parts[0] === 'DATADAQM' && parts.length >= 3) {
             const timestamp = parts[1];
-            if (oldTimestamp !== '' && oldTimestamp !== timestamp) {
-              console.log(`[TCP] Detected new DAQM timestamp: ${timestamp} (was: ${oldTimestamp})`);
+            if (oldTimestamp === '') {
+              // First DAQM timestamp — record it
+              oldTimestamp = timestamp;
+              console.log(`[TCP] First DAQM timestamp: ${timestamp}`);
+            } else if (oldTimestamp !== timestamp) {
+              // Second DAQM timestamp with different value — stop!
+              console.log(`[TCP] Second DAQM timestamp: ${timestamp} (first was: ${oldTimestamp}) — stopping`);
+              cleanup();
+              const raw = Buffer.concat(chunks).toString('utf-8');
+              const points = parseEcData(raw, siteName);
+              resolve(points);
+              return;
             }
-            oldTimestamp = timestamp;
           }
         }
       });
