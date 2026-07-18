@@ -3,6 +3,8 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { readSiteDataFromRedis } from '@/lib/redis';
 
+export const dynamic = 'force-dynamic';
+
 // Throttle to limit requests per second per file
 const lastRequestTimes = new Map<string, number>();
 const MAX_REQUESTS_PER_SECOND = 5;

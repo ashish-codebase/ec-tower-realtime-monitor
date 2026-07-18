@@ -6,6 +6,8 @@ import { getFetchInProgress, setFetchInProgress } from '@/lib/fetchState';
 import path from 'path';
 import { promises as fs } from 'fs';
 
+export const dynamic = 'force-dynamic';
+
 async function loadSitesFromCsv() {
   try {
     const csvPath = path.join(process.cwd(), 'site_name_ip_address.csv');

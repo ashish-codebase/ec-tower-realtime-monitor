@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { promises as fs } from 'fs';
 import path from 'path';
 
+export const dynamic = 'force-dynamic';
+
 async function loadSitesFromCsv() {
   try {
     const csvPath = path.join(process.cwd(), 'site_name_ip_address.csv');
