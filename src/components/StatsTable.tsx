@@ -21,20 +21,6 @@ const KEY_NAMES: Record<string, string> = {
   'P_RAIN_1_1_1': 'Rain',
 };
 
-// Key name lookup table
-const KEY_NAMES: Record<string, string> = {
-  '22': 'WNV', '23': 'WNW', '24': 'WNZ',
-  '34': 'UST', '43': 'Ustar', '36': 'H',
-  '52': 'LE', '122': 'G', '45': 'Tair',
-  '116': 'T2m', '88': 'Tsoil1', '89': 'Tsoil2',
-  '115': 'CO2_flux', '117': 'wCO2', '119': 'wQ',
-  '54': 'Rn', '123': 'SW_down', '124': 'SW_up',
-  '125': 'LW_down', '127': 'LW_up', '128': 'VPD',
-  '129': 'Tair_129', '130': 'Press_130', '131': 'CO2_dens',
-  '132': 'H2O_dens', '121': 'PAR', '210': 'WindSpd',
-  '211': 'WindDir', '118': 'RH', '120': 'Press',
-};
-
 interface Stats {
   id: number;
   key: string;
@@ -119,7 +105,6 @@ export default function StatsTable({ data }: Props) {
       .sort((a, b) => a.id.localeCompare(b.id));
 
     // Assign Jenks classes from settings (pre-computed, one-time)
-    const sensorGroups = getSensorGroups();
     result.forEach(s => {
       const group = sensorGroups.find(g => g.keys.includes(s.key));
       s.jenksClass = group ? group.jenksClass : 0;
