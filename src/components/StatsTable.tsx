@@ -28,8 +28,8 @@ interface Stats {
   min: number;
   max: number;
   mean: number;
+  stdev: number;
   duration: string;
-  jenksClass: number;
 }
 
 function formatKey(key: string): string {
@@ -83,6 +83,8 @@ export default function StatsTable({ data }: Props) {
         const values = g.values;
         const durationMs = g.lastTs - g.firstTs;
         const durationMin = Math.round(durationMs / 60000);
+        const mean = values.reduce((a, b) => a + b, 0) / values.length;
+        const variance = values.reduce((sum, v) => sum + (v - mean) ** 2, 0) / values.length;
 
         return {
           id: key,
@@ -90,32 +92,17 @@ export default function StatsTable({ data }: Props) {
           count: values.length,
           min: Math.min(...values),
           max: Math.max(...values),
-          mean: values.reduce((a, b) => a + b, 0) / values.length,
+          mean,
+          stdev: Math.sqrt(variance),
           duration: `${durationMin} min`,
-          jenksClass: 0,
         };
       })
       .sort((a, b) => a.id.localeCompare(b.id));
-
-    // Assign Jenks classes from settings (pre-computed, one-time)
-    result.forEach(s => {
-      const group = sensorGroups.find(g => g.keys.includes(s.key));
-      s.jenksClass = group ? group.jenksClass : 0;
-    });
 
     return result;
   }, [data]);
 
   if (stats.length === 0) return null;
-
-  // Jenks class colors
-  const classColors = [
-    'bg-blue-100 dark:bg-blue-900/30',
-    'bg-green-100 dark:bg-green-900/30',
-    'bg-yellow-100 dark:bg-yellow-900/30',
-    'bg-orange-100 dark:bg-orange-900/30',
-    'bg-red-100 dark:bg-red-900/30',
-  ];
 
   return (
     <div className="overflow-x-auto">
@@ -128,20 +115,20 @@ export default function StatsTable({ data }: Props) {
             <th className="text-right py-2 px-3 font-semibold">Min</th>
             <th className="text-right py-2 px-3 font-semibold">Max</th>
             <th className="text-right py-2 px-3 font-semibold">Mean</th>
-            <th className="text-center py-2 px-3 font-semibold">Class</th>
+            <th className="text-right py-2 px-3 font-semibold">StDev</th>
             <th className="text-right py-2 px-3 font-semibold">Duration</th>
           </tr>
         </thead>
         <tbody>
           {stats.map((s) => (
-            <tr key={s.key} className={`border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 ${classColors[s.jenksClass] || ''}`}>
+            <tr key={s.key} className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800">
               <td className="py-1.5 px-3 text-center font-mono text-xs">{s.id}</td>
               <td className="py-1.5 px-3 font-mono text-xs">{formatKey(s.key)}</td>
               <td className="py-1.5 px-3 text-right">{s.count}</td>
               <td className="py-1.5 px-3 text-right">{s.min.toFixed(2)}</td>
               <td className="py-1.5 px-3 text-right">{s.max.toFixed(2)}</td>
               <td className="py-1.5 px-3 text-right">{s.mean.toFixed(2)}</td>
-              <td className="py-1.5 px-3 text-center font-semibold">{s.jenksClass + 1}</td>
+              <td className="py-1.5 px-3 text-right">{s.stdev.toFixed(2)}</td>
               <td className="py-1.5 px-3 text-right">{s.duration}</td>
             </tr>
           ))}

@@ -12,7 +12,6 @@ describe('getSensorGroups', () => {
     const group = groups[0];
     expect(group).toHaveProperty('name');
     expect(group).toHaveProperty('keys');
-    expect(group).toHaveProperty('jenksClass');
     expect(group.keys).toBeInstanceOf(Array);
   });
 
@@ -22,15 +21,6 @@ describe('getSensorGroups', () => {
     const uniqueNames = new Set(names);
     
     expect(names.length).toBe(uniqueNames.size);
-  });
-
-  it('returns groups with valid jenksClass values', () => {
-    const groups = getSensorGroups();
-    
-    groups.forEach(group => {
-      expect(typeof group.jenksClass).toBe('number');
-      expect(group.jenksClass).toBeGreaterThanOrEqual(0);
-    });
   });
 
   it('has at least one group', () => {
