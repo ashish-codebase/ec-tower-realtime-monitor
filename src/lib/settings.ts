@@ -185,22 +185,12 @@ export const SETTINGS: Settings = {
       jenksClass: 14,
     },
     {
-      name: "Battery Voltage (DRM_V_BATTERY)",
-      keys: ["DRM_V_BATTERY_1_1_1"],
+      name: "DRM Power & Voltage (V_MAIN, POWER_STATUS)",
+      keys: ["DRM_V_MAIN_1_1_1", "DRM_POWER_STATUS_1_1_1"],
       jenksClass: 15,
-    },
-    {
-      name: "Main Voltage (DRM_V_MAIN)",
-      keys: ["DRM_V_MAIN_1_1_1"],
-      jenksClass: 16,
-    },
-    {
-      name: "Power Status",
-      keys: ["DRM_POWER_STATUS_1_1_1"],
-      jenksClass: 17,
     },
   ],
   generatedAt: new Date().toISOString(),
-  numClasses: 18,
+  numClasses: 17,
   allDaqmColumns: ALL_DAQM_COLUMNS,
 };

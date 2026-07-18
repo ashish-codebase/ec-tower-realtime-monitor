@@ -104,6 +104,11 @@ export default function TimeSeriesChart({ data, sensorKeys, title, timeRange }: 
       }
     }
 
+    // Detect if this is the DRM group (has both V_MAIN and POWER_STATUS)
+    const hasVMain = sensorKeys.includes('DRM_V_MAIN_1_1_1');
+    const hasPowerStatus = sensorKeys.includes('DRM_POWER_STATUS_1_1_1');
+    const isDrmGroup = hasVMain && hasPowerStatus;
+
     const datasets = Object.entries(sensorKeyPoints).map(([key, points], i) => {
       const colors = SENSOR_COLORS[i % SENSOR_COLORS.length];
       return {
@@ -117,6 +122,8 @@ export default function TimeSeriesChart({ data, sensorKeys, title, timeRange }: 
         pointHitRadius: 8,
         tension: 0,
         fill: false,
+        // Assign to secondary Y-axis for power status on DRM plot
+        yAxisID: isDrmGroup && key === 'DRM_POWER_STATUS_1_1_1' ? 'y1' : 'y',
       };
     });
 
@@ -162,8 +169,16 @@ export default function TimeSeriesChart({ data, sensorKeys, title, timeRange }: 
           ticks: { maxTicksLimit: 12 },
         },
         y: {
-          title: { display: true, text: title },
+          title: { display: true, text: isDrmGroup ? 'Voltage (V)' : title },
+          position: isDrmGroup ? 'left' as const : undefined,
         },
+        ...(isDrmGroup && {
+          y1: {
+            title: { display: true, text: 'Power Status' },
+            position: 'right' as const,
+            grid: { drawOnChartArea: false },
+          },
+        }),
       },
     };
 
