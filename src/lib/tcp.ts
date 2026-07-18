@@ -157,19 +157,25 @@ function parseEcData(raw: string): TowerDataPoint[] {
   
   // Add sonic data (resampled to 1-min)
   for (const row of sonicResampled) {
+    // Combine SECONDS and NANOSECONDS to create precise timestamp (matches Python)
+    const timestampMs = row.SECONDS * 1000 + (row.NANOSECONDS || 0) / 1000000;
+    const { SECONDS: _, NANOSECONDS: __, ...rest } = row;
     combined.push({
-      timestamp: row.SECONDS,
+      timestamp: timestampMs,
       type: 'sonic',
-      ...row,
+      ...rest,
     });
   }
   
   // Add daqm data
   for (const row of daqmRows) {
+    // Combine SECONDS and NANOSECONDS to create precise timestamp (matches Python)
+    const timestampMs = row.SECONDS * 1000 + (row.NANOSECONDS || 0) / 1000000;
+    const { SECONDS: _, NANOSECONDS: __, ...rest } = row;
     combined.push({
-      timestamp: row.SECONDS,
+      timestamp: timestampMs,
       type: 'daqm',
-      ...row,
+      ...rest,
     });
   }
   
