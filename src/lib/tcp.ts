@@ -195,8 +195,9 @@ function parseEcData(raw: string, siteName: string): TowerDataPoint[] {
   
   // Add sonic data (resampled to 1-min)
   for (const row of sonicResampled) {
-    // Use timestamp converter from Python
-    const timestampMs = new Date(timestampToUTC(row.SECONDS, row.NANOSECONDS || 0)).getTime();
+    // Normalize: if SECONDS > 1e12, it's already in milliseconds — convert to seconds
+    const seconds = row.SECONDS > 1e12 ? row.SECONDS / 1000 : row.SECONDS;
+    const timestampMs = new Date(timestampToUTC(seconds, row.NANOSECONDS || 0)).getTime();
     const { SECONDS: _, NANOSECONDS: __, ...rest } = row;
     combined.push({
       timestamp: timestampMs,
@@ -207,8 +208,9 @@ function parseEcData(raw: string, siteName: string): TowerDataPoint[] {
   
   // Add daqm data
   for (const row of daqmRows) {
-    // Use timestamp converter from Python
-    const timestampMs = new Date(timestampToUTC(row.SECONDS, row.NANOSECONDS || 0)).getTime();
+    // Normalize: if SECONDS > 1e12, it's already in milliseconds — convert to seconds
+    const seconds = row.SECONDS > 1e12 ? row.SECONDS / 1000 : row.SECONDS;
+    const timestampMs = new Date(timestampToUTC(seconds, row.NANOSECONDS || 0)).getTime();
     const { SECONDS: _, NANOSECONDS: __, ...rest } = row;
     combined.push({
       timestamp: timestampMs,
