@@ -182,7 +182,7 @@ export default function TimeSeriesChart({ data, sensorKeys, title, timeRange }: 
   }
 
   return (
-    <div style={{ width: '100%', height: 300 }}>
+    <div className="w-full h-[280px] sm:h-[320px]">
       {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
       <ChartComponent {...(config as any)} />
     </div>

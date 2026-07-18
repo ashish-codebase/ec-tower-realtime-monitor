@@ -243,7 +243,7 @@ const loadDataRef = useRef(loadData);
   );
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6">
+    <div className="w-full mx-auto px-2 sm:px-4 py-4 sm:py-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -312,9 +312,9 @@ const loadDataRef = useRef(loadData);
 
       {/* Charts - grouped by K-means clusters */}
       {filteredData.length > 0 && activeClusters.length > 0 && (
-        <div key={selectedIp} className="space-y-8 mb-8">
+        <div key={selectedIp} className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
           {activeClusters.map((cluster) => (
-            <div key={cluster.id} className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 border border-gray-200 dark:border-gray-700" style={{ minHeight: 300 }}>
+            <div key={cluster.id} className="bg-white dark:bg-gray-800 rounded-lg shadow p-3 sm:p-4 border border-gray-200 dark:border-gray-700" style={{ minHeight: 280 }}>
               <TimeSeriesChart 
                 data={filteredData} 
                 sensorKeys={cluster.keys} 
@@ -328,7 +328,7 @@ const loadDataRef = useRef(loadData);
 
       {/* Stats Table */}
       {filteredData.length > 0 && (
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 border border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-3 sm:p-4 border border-gray-200 dark:border-gray-700">
           <h2 className="text-lg font-semibold mb-3">Statistics</h2>
           <StatsTable data={filteredData} />
         </div>
