@@ -2,7 +2,8 @@ import fs from 'fs';
 import path from 'path';
 import { TowerDataPoint } from '@/types';
 
-const DATA_DIR = path.join(process.cwd(), 'data');
+// Use /tmp in serverless environments (Vercel), local data dir otherwise
+const DATA_DIR = process.env.VERCEL ? '/tmp/ec-tower-data' : path.join(process.cwd(), 'data');
 
 export function ensureDataDir() {
   if (!fs.existsSync(DATA_DIR)) {
