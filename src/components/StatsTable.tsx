@@ -68,15 +68,17 @@ export default function StatsTable({ data }: Props) {
         const converter = conversionMap.get(key);
         const convertedValue = converter ? converter(value) : value;
         
+        // Ensure timestamp is in milliseconds
+        const timestampMs = point.timestamp > 1e12 ? point.timestamp : point.timestamp * 1000;
+        
         const comboKey = `${key}__${point.type}`;
         if (!groups.has(comboKey)) {
-          groups.set(comboKey, { values: [], firstTs: point.timestamp * 1000, lastTs: point.timestamp * 1000 });
+          groups.set(comboKey, { values: [], firstTs: timestampMs, lastTs: timestampMs });
         }
         const g = groups.get(comboKey)!;
         g.values.push(convertedValue);
-        const ts = point.timestamp * 1000;
-        if (ts < g.firstTs) g.firstTs = ts;
-        if (ts > g.lastTs) g.lastTs = ts;
+        if (timestampMs < g.firstTs) g.firstTs = timestampMs;
+        if (timestampMs > g.lastTs) g.lastTs = timestampMs;
       }
     }
 
