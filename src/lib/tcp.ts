@@ -67,7 +67,7 @@ export async function fetchTowerData(ip: string, siteName: string = 'unknown'): 
       const timer = setTimeout(() => {
         cleanup();
         const raw = Buffer.concat(chunks).toString('utf-8');
-        const points = parseEcData(raw);
+        const points = parseEcData(raw, siteName);
         resolve(points);
       }, TOTAL_TIMEOUT_MS);
 
