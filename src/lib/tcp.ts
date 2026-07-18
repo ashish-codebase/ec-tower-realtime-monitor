@@ -40,7 +40,7 @@ export async function fetchTowerData(ip: string, siteName: string = 'unknown'): 
       client.on('data', (chunk: Buffer) => {
         chunks.push(chunk);
         
-        // Match Python logic: stop when new timestamp detected in DAQM data
+        // Optional: Track DAQM timestamps for debugging
         const text = chunk.toString('utf-8');
         const lines = text.split('\n');
         for (const line of lines) {
@@ -51,12 +51,7 @@ export async function fetchTowerData(ip: string, siteName: string = 'unknown'): 
           if (parts[0] === 'DATADAQM' && parts.length >= 3) {
             const timestamp = parts[1];
             if (oldTimestamp !== '' && oldTimestamp !== timestamp) {
-              // New timestamp detected — stop receiving (matches Python logic)
-              cleanup();
-              const raw = Buffer.concat(chunks).toString('utf-8');
-              const points = parseEcData(raw, siteName);
-              resolve(points);
-              return;
+              console.log(`[TCP] Detected new DAQM timestamp: ${timestamp} (was: ${oldTimestamp})`);
             }
             oldTimestamp = timestamp;
           }
