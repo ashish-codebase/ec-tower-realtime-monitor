@@ -2,49 +2,101 @@ import net from 'net';
 import { SensorDataPoint } from '@/types';
 
 const PORT = 50311;
-const TOTAL_TIMEOUT_MS = 30000; // 30s total — tower keeps connection open, sends in bursts
+const TOTAL_TIMEOUT_MS = 60000; // 60s — matches Python download_data.py
+
+// Semaphore: limit concurrent tower connections (matches Python's MAX_PARALLEL=10)
+let activeConnections = 0;
+const MAX_CONCURRENT = 10;
+
+async function acquireSemaphore(): Promise<void> {
+  while (activeConnections >= MAX_CONCURRENT) {
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+  activeConnections++;
+}
+
+function releaseSemaphore(): void {
+  activeConnections--;
+}
 
 export async function fetchTowerData(ip: string): Promise<SensorDataPoint[]> {
-  return new Promise((resolve, reject) => {
-    const client = net.createConnection({ port: PORT, host: ip }, () => {
-      // Tower responds with sensor data when:
-      // - HTTP/1.0 (not 1.1)
-      // - Host header includes ip:port
-      const request = `GET / HTTP/1.0\r\nHost: ${ip}:${PORT}\r\n\r\n`;
-      client.write(request);
+  await acquireSemaphore();
+  try {
+    return await new Promise<SensorDataPoint[]>((resolve, reject) => {
+      const client = net.createConnection({ port: PORT, host: ip }, () => {
+        // Tower responds with sensor data when:
+        // - HTTP/1.0 (not 1.1)
+        // - Host header includes ip:port
+        const request = `GET / HTTP/1.0\r\nHost: ${ip}:${PORT}\r\n\r\n`;
+        client.write(request);
+      });
+
+      const chunks: Buffer[] = [];
+      let oldTimestamp = '';
+
+      client.on('data', (chunk: Buffer) => {
+        chunks.push(chunk);
+        
+        // Match Python logic: stop when new timestamp detected
+        const text = chunk.toString('utf-8');
+        const lines = text.split('\n');
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+            try {
+              const parsed = JSON.parse(trimmed);
+              for (const [sensorNum, value] of Object.entries(parsed)) {
+                if (typeof value === 'object' && value !== null && 'data' in value) {
+                  const dataArr = (value as { data: unknown[] }).data;
+                  if (Array.isArray(dataArr) && dataArr.length >= 2) {
+                    const timestamp = String(dataArr[1]);
+                    if (oldTimestamp !== '' && oldTimestamp !== timestamp) {
+                      // New timestamp detected — stop receiving (matches Python logic)
+                      cleanup();
+                      const raw = Buffer.concat(chunks).toString('utf-8');
+                      const points = parseTowerResponse(raw);
+                      resolve(points || []);
+                      return;
+                    }
+                    oldTimestamp = timestamp;
+                  }
+                }
+              }
+            } catch {
+              // skip malformed JSON
+            }
+          }
+        }
+      });
+
+      // 60s timeout — matches Python's DATA_TIMEOUT
+      const timer = setTimeout(() => {
+        cleanup();
+        const raw = Buffer.concat(chunks).toString('utf-8');
+        const points = parseTowerResponse(raw);
+        resolve(points || []);
+      }, TOTAL_TIMEOUT_MS);
+
+      client.on('end', () => {
+        cleanup();
+        const raw = Buffer.concat(chunks).toString('utf-8');
+        const points = parseTowerResponse(raw);
+        resolve(points || []);
+      });
+
+      client.on('error', (err) => {
+        cleanup();
+        reject(err);
+      });
+
+      function cleanup() {
+        clearTimeout(timer);
+        client.destroy();
+      }
     });
-
-    const chunks: Buffer[] = [];
-
-    client.on('data', (chunk: Buffer) => {
-      chunks.push(chunk);
-    });
-
-    // Tower keeps connection open — use total timeout to capture all data
-    const timer = setTimeout(() => {
-      cleanup();
-      const raw = Buffer.concat(chunks).toString('utf-8');
-      const points = parseTowerResponse(raw);
-      resolve(points || []);
-    }, TOTAL_TIMEOUT_MS);
-
-    client.on('end', () => {
-      cleanup();
-      const raw = Buffer.concat(chunks).toString('utf-8');
-      const points = parseTowerResponse(raw);
-      resolve(points || []);
-    });
-
-    client.on('error', (err) => {
-      cleanup();
-      reject(err);
-    });
-
-    function cleanup() {
-      clearTimeout(timer);
-      client.destroy();
-    }
-  });
+  } finally {
+    releaseSemaphore();
+  }
 }
 
 function parseTowerResponse(raw: string): SensorDataPoint[] | null {
