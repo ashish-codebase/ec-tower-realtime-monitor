@@ -143,9 +143,10 @@ function parseEcData(raw: string): TowerDataPoint[] {
     } else if (row[0] === 'DATADAQM') {
       const data = row.slice(1);
       daqmCount++;
-      // Debug: log first 2 DAQM rows
+      // Debug: log first 2 DAQM rows with full context
       if (daqmCount <= 2) {
-        console.log(`[TCP] DAQM row ${daqmCount}: first 5 fields = ${data.slice(0, 5).join(', ')}`);
+        console.log(`[TCP] DAQM row ${daqmCount}: total columns=${data.length}, first 10 = ${data.slice(0, 10).join(' | ')}`);
+        console.log(`[TCP] DAQM row ${daqmCount}: SECONDS=${data[0]}, NANOSECONDS=${data[1]}`);
       }
       const daqmRow: any = {
         SECONDS: Number(data[0]) || 0,
