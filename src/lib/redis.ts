@@ -45,7 +45,13 @@ export async function readSiteDataFromRedis(ip: string): Promise<TowerDataPoint[
     const raw = await client.get(getRedisKey(ip));
     if (!raw) return null;
     const data = JSON.parse(raw);
-    return Array.isArray(data) ? data : null;
+    if (!Array.isArray(data)) return null;
+    
+    // Normalize timestamps: if < 1e12, it's in seconds — convert to ms
+    return data.map(p => ({
+      ...p,
+      timestamp: p.timestamp < 1e12 ? p.timestamp * 1000 : p.timestamp,
+    }));
   } catch (err) {
     console.error('[Redis] read error:', err);
     return null;
