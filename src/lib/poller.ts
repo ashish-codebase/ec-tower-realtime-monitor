@@ -3,43 +3,52 @@ import { fetchTowerData } from './tcp';
 import { appendSiteData, ensureDataDir } from './storage';
 import { appendSiteDataToRedis } from './redis';
 
-const POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
-let pollerInterval: NodeJS.Timeout | null = null;
-let isPolling = false;
+const PAUSE_MS = 5 * 60 * 1000; // 5 minutes pause after all fetches complete
+let pollerTimeout: NodeJS.Timeout | null = null;
+let isRunning = false;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function tick(sites: Site[]) {
+  if (isRunning) return;
+  isRunning = true;
+  try {
+    const promises = sites.map(async (site) => {
+      try {
+        const data = await fetchTowerData(site.ip, site.name);
+        if (data.length > 0) {
+          await appendSiteDataToRedis(site.ip, data);
+          appendSiteData(site.ip, data);
+        }
+      } catch (err) {
+        console.error(`Poll error for ${site.name} (${site.ip}):`, err instanceof Error ? err.message : err);
+      }
+    });
+    await Promise.allSettled(promises);
+  } finally {
+    isRunning = false;
+  }
+}
 
 export function startPolling(sites: Site[]) {
   ensureDataDir();
-  if (pollerInterval) return;
+  if (pollerTimeout) return;
 
-  async function tick() {
-    if (isPolling) return;
-    isPolling = true;
-    try {
-      const promises = sites.map(async (site) => {
-        try {
-          const data = await fetchTowerData(site.ip, site.name);
-          if (data.length > 0) {
-            await appendSiteDataToRedis(site.ip, data);
-            appendSiteData(site.ip, data);
-          }
-        } catch (err) {
-          console.error(`Poll error for ${site.name} (${site.ip}):`, err instanceof Error ? err.message : err);
-        }
-      });
-      await Promise.allSettled(promises);
-    } finally {
-      isPolling = false;
-    }
+  async function loop() {
+    await tick(sites);
+    console.log(`[Poller] All sites fetched, pausing ${PAUSE_MS / 60000} min...`);
+    pollerTimeout = setTimeout(loop, PAUSE_MS);
   }
 
   // Run immediately on start
-  tick();
-  pollerInterval = setInterval(tick, POLL_INTERVAL_MS);
+  loop();
 }
 
 export function stopPolling() {
-  if (pollerInterval) {
-    clearInterval(pollerInterval);
-    pollerInterval = null;
+  if (pollerTimeout) {
+    clearTimeout(pollerTimeout);
+    pollerTimeout = null;
   }
 }

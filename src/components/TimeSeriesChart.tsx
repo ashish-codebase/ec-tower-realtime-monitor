@@ -93,20 +93,18 @@ export default function TimeSeriesChart({ data, sensorKeys, title, timeRange }: 
             debugCount++;
           }
           
-          const groupKey = `${point.type}|||${key}`;
-          if (!sensorKeyPoints[groupKey]) {
-            sensorKeyPoints[groupKey] = [];
+          if (!sensorKeyPoints[key]) {
+            sensorKeyPoints[key] = [];
           }
-          sensorKeyPoints[groupKey].push({ x: timestampMs, y: convertedValue });
+          sensorKeyPoints[key].push({ x: timestampMs, y: convertedValue });
         }
       }
     }
 
-    const datasets = Object.entries(sensorKeyPoints).map(([groupKey, points], i) => {
-      const [type, key] = groupKey.split('|||');
+    const datasets = Object.entries(sensorKeyPoints).map(([key, points], i) => {
       const colors = SENSOR_COLORS[i % SENSOR_COLORS.length];
       return {
-        label: `${KEY_NAMES[key] || key} (${type})`,
+        label: KEY_NAMES[key] || key,
         data: points.sort((a, b) => a.x - b.x),
         borderColor: colors,
         borderWidth: 1.5,

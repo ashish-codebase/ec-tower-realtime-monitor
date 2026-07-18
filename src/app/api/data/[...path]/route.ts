@@ -49,9 +49,7 @@ function addReadableTimestamps(content: string): string {
     const data = JSON.parse(content);
     if (Array.isArray(data)) {
       const transformed = data.map(point => {
-        const seconds = Math.floor(point.timestamp / 1000);
-        const nanoseconds = (point.timestamp % 1000) * 1000000;
-        const iso = new Date(timestampToUTC(seconds, nanoseconds)).toISOString();
+        const iso = new Date(point.timestamp).toISOString();
         return {
           ...point,
           timestamp_readable: iso,

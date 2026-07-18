@@ -10,8 +10,6 @@ const TOTAL_TIMEOUT_MS = 180000; // 180s — 3 min to catch second DAQM row
 let activeConnections = 0;
 const MAX_CONCURRENT = 10;
 
-
-
 async function acquireSemaphore(): Promise<void> {
   while (activeConnections >= MAX_CONCURRENT) {
     await new Promise(resolve => setTimeout(resolve, 100));
@@ -28,9 +26,6 @@ export async function fetchTowerData(ip: string, siteName: string = 'unknown'): 
   try {
     return await new Promise<TowerDataPoint[]>((resolve, reject) => {
       const client = net.createConnection({ port: PORT, host: ip }, () => {
-        // Tower responds with tab-separated data when:
-        // - HTTP/1.0 (not 1.1)
-        // - Host header includes ip:port
         const request = `GET / HTTP/1.0\r\nHost: ${ip}:${PORT}\r\n\r\n`;
         client.write(request);
       });
@@ -41,7 +36,6 @@ export async function fetchTowerData(ip: string, siteName: string = 'unknown'): 
       client.on('data', (chunk: Buffer) => {
         chunks.push(chunk);
         
-        // Match Python logic: stop when SECOND DATADAQM timestamp appears
         const text = chunk.toString('utf-8');
         const lines = text.split('\n');
         for (const line of lines) {
@@ -52,7 +46,6 @@ export async function fetchTowerData(ip: string, siteName: string = 'unknown'): 
           if (parts[0] === 'DATADAQM' && parts.length >= 3) {
             const timestamp = parts[1];
             if (oldTimestamp === '') {
-              // First DAQM timestamp — record it
               oldTimestamp = timestamp;
               console.log(`[TCP] First DAQM timestamp: ${timestamp}`);
             } else if (oldTimestamp !== timestamp) {
@@ -68,7 +61,6 @@ export async function fetchTowerData(ip: string, siteName: string = 'unknown'): 
         }
       });
 
-      // 60s timeout — matches Python's DATA_TIMEOUT
       const timer = setTimeout(() => {
         cleanup();
         const raw = Buffer.concat(chunks).toString('utf-8');
@@ -146,79 +138,89 @@ function parseEcData(raw: string, siteName: string): TowerDataPoint[] {
   // Resample sonic data to 1-minute intervals
   const sonicResampled = resampleSonicTo1Min(sonicRows);
   
-  // Parse DAQM data — track order in raw stream for timestamp assignment
+  // Parse DAQM data — collect header and all rows
   let daqmHeader: string[] = [];
-  interface DaqmWithOrder {
-    row: any;
-    orderIndex: number;
-    lastSonicTs: number | null;
+  interface RawDaqmRow {
+    SECONDS: number;
+    NANOSECONDS: number;
+    [columnName: string]: number;
   }
-  const daqmWithOrder: DaqmWithOrder[] = [];
-  let daqmCount = 0;
+  const rawDaqmRows: RawDaqmRow[] = [];
   let lastSonicTimestamp: number | null = null;
   
-  console.log(`[TCP] Total parsed rows: ${parsedRows.length}, sonic: ${sonicRows.length}, daqm header found: ${daqmHeader.length > 0}`);
-  
-  for (let i = 0; i < parsedRows.length; i++) {
-    const row = parsedRows[i];
+  for (const row of parsedRows) {
     if (row[0] === 'DATADAQMH') {
       daqmHeader = row.slice(1);
-      // Register columns for this tower
       columnRegistry.addTowerColumns(siteName, daqmHeader);
       console.log(`[TCP] DAQM header (first 5): ${daqmHeader.slice(0, 5).join(', ')}`);
     } else if (row[0] === 'DATADAQM') {
       const data = row.slice(1);
-      daqmCount++;
-      // Debug: log first 2 DAQM rows with full context
-      if (daqmCount <= 2) {
-        console.log(`[TCP] DAQM row ${daqmCount}: total columns=${data.length}, first 10 = ${data.slice(0, 10).join(' | ')}`);
-        console.log(`[TCP] DAQM row ${daqmCount}: SECONDS=${data[0]}, NANOSECONDS=${data[1]}`);
-      }
       const daqmRow: any = {
         SECONDS: Number(data[0]) || 0,
         NANOSECONDS: Number(data[1]) || 0,
       };
-      // Add remaining columns dynamically
       for (let j = 2; j < data.length; j++) {
         if (daqmHeader[j - 2]) {
           const value = Number(data[j]);
-          // Use NaN for non-numeric or invalid values
           daqmRow[daqmHeader[j - 2]] = isNaN(value) ? NaN : value;
         }
       }
-      daqmWithOrder.push({ row: daqmRow, orderIndex: i, lastSonicTs: lastSonicTimestamp });
+      rawDaqmRows.push(daqmRow);
     } else if (row[0] === 'DATASONIC') {
-      // Update last sonic timestamp for subsequent DAQM rows
       const sonicData = row.slice(1);
-      const sonicSeconds = Number(sonicData[0]) || 0;
-      const sonicNanoseconds = Number(sonicData[1]) || 0;
-      lastSonicTimestamp = new Date(timestampToUTC(sonicSeconds, sonicNanoseconds)).getTime();
+      lastSonicTimestamp = new Date(timestampToUTC(Number(sonicData[0]) || 0, Number(sonicData[1]) || 0)).getTime();
     }
   }
   
-  // Combine sonic and daqm data into single array
+  // Average DAQM rows with same SECONDS timestamp (two readings per half-hour → one averaged point)
+  const daqmByTimestamp = new Map<number, RawDaqmRow[]>();
+  for (const row of rawDaqmRows) {
+    const tsKey = row.SECONDS;
+    if (!daqmByTimestamp.has(tsKey)) {
+      daqmByTimestamp.set(tsKey, []);
+    }
+    daqmByTimestamp.get(tsKey)!.push(row);
+  }
+  
+  const averagedDaqm: RawDaqmRow[] = [];
+  for (const [tsKey, rows] of daqmByTimestamp) {
+    if (rows.length === 1) {
+      averagedDaqm.push(rows[0]);
+    } else {
+      // Average all rows with same timestamp
+      const avg: any = { SECONDS: tsKey, NANOSECONDS: 0 };
+      for (const col of daqmHeader) {
+        const sum = rows.reduce((s, r) => s + (typeof r[col] === 'number' ? r[col] : 0), 0);
+        avg[col] = sum / rows.length;
+      }
+      averagedDaqm.push(avg);
+    }
+  }
+  
+  // Track last sonic timestamp for DAQM assignment
+  let daqmSonicTs: number | null = null;
+  for (const row of parsedRows) {
+    if (row[0] === 'DATASONIC') {
+      const sonicData = row.slice(1);
+      daqmSonicTs = new Date(timestampToUTC(Number(sonicData[0]) || 0, Number(sonicData[1]) || 0)).getTime();
+    }
+  }
+  
+  // Combine sonic and averaged daqm data into single array (no type field)
   const combined: TowerDataPoint[] = [];
   
   // Add sonic data (resampled to 1-min)
   for (const row of sonicResampled) {
     const timestampMs = new Date(timestampToUTC(row.SECONDS, row.NANOSECONDS || 0)).getTime();
     const { SECONDS: _, NANOSECONDS: __, ...rest } = row;
-    combined.push({
-      timestamp: timestampMs,
-      type: 'sonic',
-      ...rest,
-    });
+    combined.push({ timestamp: timestampMs, ...rest });
   }
   
-  // Add daqm data — use stored sonic timestamp from stream order
-  for (const { row, lastSonicTs } of daqmWithOrder) {
-    const timestampMs = lastSonicTs || 0;
+  // Add averaged daqm data
+  for (const row of averagedDaqm) {
+    const timestampMs = daqmSonicTs || 0;
     const { SECONDS: _, NANOSECONDS: __, ...rest } = row;
-    combined.push({
-      timestamp: timestampMs,
-      type: 'daqm',
-      ...rest,
-    });
+    combined.push({ timestamp: timestampMs, ...rest });
   }
   
   // Sort by timestamp
@@ -229,11 +231,9 @@ function parseEcData(raw: string, siteName: string): TowerDataPoint[] {
 function resampleSonicTo1Min(sonicRows: { SECONDS: number; NANOSECONDS: number; [key: string]: number }[]): any[] {
   if (sonicRows.length === 0) return [];
   
-  // Group by minute
   const minuteGroups = new Map<number, typeof sonicRows[number][]>();
   
   for (const row of sonicRows) {
-    // Convert seconds + nanoseconds to milliseconds
     const ms = row.SECONDS * 1000 + Math.floor(row.NANOSECONDS / 1000000);
     const minuteMs = Math.floor(ms / 60000) * 60000;
     
@@ -243,7 +243,6 @@ function resampleSonicTo1Min(sonicRows: { SECONDS: number; NANOSECONDS: number; 
     minuteGroups.get(minuteMs)!.push(row);
   }
   
-  // Calculate averages for each minute
   const resampled: any[] = [];
   
   for (const [minuteMs, rows] of minuteGroups) {
@@ -252,7 +251,6 @@ function resampleSonicTo1Min(sonicRows: { SECONDS: number; NANOSECONDS: number; 
       NANOSECONDS: 0,
     };
     
-    // Calculate averages for numeric fields
     for (const key of Object.keys(rows[0])) {
       if (key !== 'SECONDS' && key !== 'NANOSECONDS') {
         avg[key] = rows.reduce((sum, r) => sum + (r[key] || 0), 0) / rows.length;
@@ -262,43 +260,6 @@ function resampleSonicTo1Min(sonicRows: { SECONDS: number; NANOSECONDS: number; 
     resampled.push(avg);
   }
   
-  // Sort by timestamp
   resampled.sort((a, b) => a.SECONDS - b.SECONDS);
   return resampled;
-}
-
-// Find the end of a valid JSON object by tracking brace depth
-function findJsonEnd(str: string): number {
-  let depth = 0;
-  let inString = false;
-  let escape = false;
-
-  for (let i = 0; i < str.length; i++) {
-    const ch = str[i];
-
-    if (escape) {
-      escape = false;
-      continue;
-    }
-
-    if (ch === '\\' && inString) {
-      escape = true;
-      continue;
-    }
-
-    if (ch === '"') {
-      inString = !inString;
-      continue;
-    }
-
-    if (inString) continue;
-
-    if (ch === '{') depth++;
-    if (ch === '}') {
-      depth--;
-      if (depth === 0) return i + 1;
-    }
-  }
-
-  return -1; // no complete JSON object found
 }

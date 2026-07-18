@@ -24,7 +24,6 @@ export interface Stats {
 
 // Combined data point (sonic + daqm merged by timestamp)
 export interface TowerDataPoint {
-  timestamp: number; // Unix timestamp in seconds
-  type: 'sonic' | 'daqm';
+  timestamp: number; // Unix timestamp in milliseconds
   [key: string]: number | string;
 }

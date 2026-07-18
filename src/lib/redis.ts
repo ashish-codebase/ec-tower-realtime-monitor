@@ -74,11 +74,11 @@ export async function appendSiteDataToRedis(ip: string, newPoints: TowerDataPoin
     const seenKeys = new Set<string>();
 
     for (const point of existing) {
-      seenKeys.add(`${point.timestamp}_${point.type}`);
+      seenKeys.add(`${point.timestamp}`);
     }
 
     const deduped = newPoints.filter((point) => {
-      const key = `${point.timestamp}_${point.type}`;
+      const key = `${point.timestamp}`;
       return !seenKeys.has(key);
     });
 

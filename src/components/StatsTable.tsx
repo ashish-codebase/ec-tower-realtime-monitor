@@ -24,7 +24,6 @@ const KEY_NAMES: Record<string, string> = {
 interface Stats {
   id: string;
   key: string;
-  sensor: string;
   count: number;
   min: number;
   max: number;
@@ -33,9 +32,8 @@ interface Stats {
   jenksClass: number;
 }
 
-function formatKey(key: string, sensor: string): string {
-  const name = KEY_NAMES[key] || key;
-  return `${name}<sub>${sensor}</sub>`;
+function formatKey(key: string): string {
+  return KEY_NAMES[key] || key;
 }
 
 interface Props {
@@ -70,11 +68,10 @@ export default function StatsTable({ data }: Props) {
         
         const timestampMs = point.timestamp;
         
-        const comboKey = `${key}__${point.type}`;
-        if (!groups.has(comboKey)) {
-          groups.set(comboKey, { values: [], firstTs: timestampMs, lastTs: timestampMs });
+        if (!groups.has(key)) {
+          groups.set(key, { values: [], firstTs: timestampMs, lastTs: timestampMs });
         }
-        const g = groups.get(comboKey)!;
+        const g = groups.get(key)!;
         g.values.push(convertedValue);
         if (timestampMs < g.firstTs) g.firstTs = timestampMs;
         if (timestampMs > g.lastTs) g.lastTs = timestampMs;
@@ -82,11 +79,7 @@ export default function StatsTable({ data }: Props) {
     }
 
     const result = Array.from(groups.entries())
-      .map(([comboKey, g]) => {
-        // Split on double underscore to preserve keys with single underscores
-        const parts = comboKey.split('__');
-        const key = parts[0];
-        const type = parts[1];
+      .map(([key, g]) => {
         const values = g.values;
         const durationMs = g.lastTs - g.firstTs;
         const durationMin = Math.round(durationMs / 60000);
@@ -94,7 +87,6 @@ export default function StatsTable({ data }: Props) {
         return {
           id: key,
           key,
-          sensor: type,
           count: values.length,
           min: Math.min(...values),
           max: Math.max(...values),
@@ -142,9 +134,9 @@ export default function StatsTable({ data }: Props) {
         </thead>
         <tbody>
           {stats.map((s) => (
-            <tr key={`${s.key}_${s.sensor}`} className={`border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 ${classColors[s.jenksClass] || ''}`}>
+            <tr key={s.key} className={`border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800 ${classColors[s.jenksClass] || ''}`}>
               <td className="py-1.5 px-3 text-center font-mono text-xs">{s.id}</td>
-              <td className="py-1.5 px-3 font-mono text-xs" dangerouslySetInnerHTML={{ __html: formatKey(s.key, s.sensor) }} />
+              <td className="py-1.5 px-3 font-mono text-xs">{formatKey(s.key)}</td>
               <td className="py-1.5 px-3 text-right">{s.count}</td>
               <td className="py-1.5 px-3 text-right">{s.min.toFixed(2)}</td>
               <td className="py-1.5 px-3 text-right">{s.max.toFixed(2)}</td>

@@ -43,11 +43,11 @@ export function appendSiteData(ip: string, newPoints: TowerDataPoint[]) {
   const seenKeys = new Set<string>();
 
   for (const p of existing) {
-    seenKeys.add(`${p.timestamp}_${p.type}`);
+    seenKeys.add(`${p.timestamp}`);
   }
 
   const deduped = newPoints.filter((p) => {
-    const key = `${p.timestamp}_${p.type}`;
+    const key = `${p.timestamp}`;
     return !seenKeys.has(key);
   });
 

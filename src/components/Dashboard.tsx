@@ -77,7 +77,6 @@ export default function Dashboard() {
       
       const json = JSON.parse(text);
       const data = Array.isArray(json) ? json : json.data || [];
-      
       setData(data);
       lastFetchTimestampRef.current = now;
       setLastFetchTime(new Date());
@@ -109,37 +108,21 @@ const loadDataRef = useRef(loadData);
     }
   }, [selectedIp]);
 
-  // Auto-poll every 5 minutes: trigger backend fetch + reload data
+  // Auto-reload data every 5 minutes (poller already fetches from towers)
   useEffect(() => {
-    console.log(`[Dashboard] Starting poll interval for ${selectedIp}`);
+    console.log(`[Dashboard] Starting auto-reload for ${selectedIp}`);
     const interval = setInterval(async () => {
-      console.log('[Dashboard] Auto-polling...');
+      console.log('[Dashboard] Auto-reloading...');
       try {
-        // Trigger backend to fetch fresh data from towers
-        const fetchRes = await fetch('/api/fetch', { signal: AbortSignal.timeout(30000) });
-        if (fetchRes.ok) {
-          console.log('[Dashboard] Backend fetch triggered');
-        }
-        // Reload data from Redis after fetch (bypass cache)
-        const selectedSite = sites.find((s) => s.ip === selectedIp);
-        const siteName = selectedSite?.name || selectedIp.replace(/\./g, '_');
-        const res = await fetch(`/api/data/${siteName}.json?refresh=true`, { signal: AbortSignal.timeout(30000) });
-        if (res.ok) {
-          const text = await res.text();
-          const json = JSON.parse(text);
-          const data = Array.isArray(json) ? json : json.data || [];
-          setData(data);
-          lastFetchTimestampRef.current = Date.now();
-          setLastFetchTime(new Date());
-        }
+        await loadData();
       } catch (err) {
-        console.error('[Dashboard] Auto-poll error:', err);
+        console.error('[Dashboard] Auto-reload error:', err);
       }
     }, POLL_MS);
     return () => {
       clearInterval(interval);
     };
-  }, [selectedIp, sites]);
+  }, [selectedIp, sites, loadData]);
 
 
 
