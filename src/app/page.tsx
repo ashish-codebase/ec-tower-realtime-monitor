@@ -31,13 +31,18 @@ function initPoller() {
 }
 
 // Prevent HMR from restarting poller in dev
-if (process.env.NODE_ENV === 'development') {
-  if (!(global as any).__ecPollerStarted) {
+// Skip poller during build (Vercel static generation times out on tower connections)
+const isBuildTime = process.env.NEXT_PHASE === 'phase-production-build' || process.env.VERCEL === '1';
+
+if (!isBuildTime) {
+  if (process.env.NODE_ENV === 'development') {
+    if (!(global as any).__ecPollerStarted) {
+      initPoller();
+      (global as any).__ecPollerStarted = true;
+    }
+  } else {
     initPoller();
-    (global as any).__ecPollerStarted = true;
   }
-} else {
-  initPoller();
 }
 
 export default function Home() {
