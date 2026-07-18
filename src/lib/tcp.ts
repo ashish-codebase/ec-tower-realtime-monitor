@@ -132,12 +132,19 @@ function parseEcData(raw: string): TowerDataPoint[] {
   // Parse DAQM data
   let daqmHeader: string[] = [];
   const daqmRows: any[] = [];
+  let daqmCount = 0;
   
   for (const row of parsedRows) {
     if (row[0] === 'DATADAQMH') {
       daqmHeader = row.slice(1);
+      console.log(`[TCP] DAQM header (first 5): ${daqmHeader.slice(0, 5).join(', ')}`);
     } else if (row[0] === 'DATADAQM') {
       const data = row.slice(1);
+      daqmCount++;
+      // Debug: log first 2 DAQM rows
+      if (daqmCount <= 2) {
+        console.log(`[TCP] DAQM row ${daqmCount}: first 5 fields = ${data.slice(0, 5).join(', ')}`);
+      }
       const daqmRow: any = {
         SECONDS: Number(data[0]) || 0,
         NANOSECONDS: Number(data[1]) || 0,
