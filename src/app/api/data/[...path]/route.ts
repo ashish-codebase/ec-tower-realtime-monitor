@@ -77,11 +77,14 @@ export async function GET(
   }
   lastRequestTimes.set(ipFile, now);
 
+  // Check for cache bypass parameter
+  const bypassCache = request.nextUrl.searchParams.get('refresh') === 'true';
+  
   // Normalize and cache by file name
   const normalizedFile = ipFile.endsWith('.json') ? ipFile : `${ipFile}.json`;
   const cacheKey = `data_${normalizedFile}`;
   const cached = dataCache.get(cacheKey);
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL && !bypassCache) {
     console.log(`[VercelData] Cache hit for ${normalizedFile}: Returning ${cached.content.length} bytes`);
     return new Response(cached.content, {
       headers: {

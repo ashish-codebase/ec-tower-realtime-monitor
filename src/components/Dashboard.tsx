@@ -108,23 +108,37 @@ const loadDataRef = useRef(loadData);
     }
   }, [selectedIp]);
 
-  // Auto-poll every 5 minutes (stable interval)
+  // Auto-poll every 5 minutes: trigger backend fetch + reload data
   useEffect(() => {
     console.log(`[Dashboard] Starting poll interval for ${selectedIp}`);
-    console.log(`[Dashboard] POLL_MS = ${POLL_MS}ms = ${POLL_MS/1000}s`);
-    const interval = setInterval(() => {
-      console.log('[Dashboard] Polling...');
-      if (selectedIp) {
-        console.log('[Dashboard] Calling loadData...');
-        loadDataRef.current();
+    const interval = setInterval(async () => {
+      console.log('[Dashboard] Auto-polling...');
+      try {
+        // Trigger backend to fetch fresh data from towers
+        const fetchRes = await fetch('/api/fetch', { signal: AbortSignal.timeout(30000) });
+        if (fetchRes.ok) {
+          console.log('[Dashboard] Backend fetch triggered');
+        }
+        // Reload data from Redis after fetch (bypass cache)
+        const selectedSite = sites.find((s) => s.ip === selectedIp);
+        const siteName = selectedSite?.name || selectedIp.replace(/\./g, '_');
+        const res = await fetch(`/api/data/${siteName}.json?refresh=true`, { signal: AbortSignal.timeout(30000) });
+        if (res.ok) {
+          const text = await res.text();
+          const json = JSON.parse(text);
+          const data = Array.isArray(json) ? json : json.data || [];
+          setData(data);
+          lastFetchTimestampRef.current = Date.now();
+          setLastFetchTime(new Date());
+        }
+      } catch (err) {
+        console.error('[Dashboard] Auto-poll error:', err);
       }
     }, POLL_MS);
-    console.log('[Dashboard] Interval ID:', interval);
     return () => {
-      console.log('[Dashboard] Clearing interval');
       clearInterval(interval);
     };
-  }, [selectedIp]); // Only depend on selectedIp
+  }, [selectedIp, sites]);
 
   // Initialize time range to full data range whenever the current data changes
   useEffect(() => {
