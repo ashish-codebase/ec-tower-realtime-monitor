@@ -74,7 +74,7 @@ export async function fetchTowerData(ip: string, siteName: string = 'unknown'): 
       client.on('end', () => {
         cleanup();
         const raw = Buffer.concat(chunks).toString('utf-8');
-        const points = parseEcData(raw);
+        const points = parseEcData(raw, siteName);
         resolve(points);
       });
 
@@ -93,7 +93,7 @@ export async function fetchTowerData(ip: string, siteName: string = 'unknown'): 
   }
 }
 
-function parseEcData(raw: string): TowerDataPoint[] {
+function parseEcData(raw: string, siteName: string): TowerDataPoint[] {
   // Strip HTTP headers if present (up to first \r\n\r\n)
   const headerEnd = raw.indexOf('\r\n\r\n');
   let body = raw;
