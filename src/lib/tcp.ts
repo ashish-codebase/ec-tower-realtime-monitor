@@ -169,6 +169,10 @@ function parseEcData(raw: string): TowerDataPoint[] {
   
   // Add daqm data
   for (const row of daqmRows) {
+    // Debug: log raw DAQM timestamp values
+    if (daqmRows.indexOf(row) < 2) {
+      console.log(`[TCP] DAQM raw: SECONDS=${row.SECONDS}, NANOSECONDS=${row.NANOSECONDS}`);
+    }
     // Combine SECONDS and NANOSECONDS to create precise timestamp (matches Python)
     const timestampMs = row.SECONDS * 1000 + (row.NANOSECONDS || 0) / 1000000;
     const { SECONDS: _, NANOSECONDS: __, ...rest } = row;
