@@ -60,7 +60,7 @@ export default function TimeSeriesChart({ data, sensorKeys, title, timeRange }: 
         if (value !== undefined && !isNaN(value as number)) {
           // Apply conversion if exists (e.g., PPFD -> W/m²)
           const converter = conversionMap.get(key);
-          const convertedValue = converter ? converter(value as number) : value;
+          const convertedValue = converter ? converter(value as number) : (value as number);
           
           const groupKey = `${point.type}|||${key}`;
           if (!sensorKeyPoints[groupKey]) {
