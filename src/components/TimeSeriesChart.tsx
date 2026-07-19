@@ -54,7 +54,7 @@ const SENSOR_COLORS = [
 interface Props {
   data: TowerDataPoint[];
   sensorKeys: string[]; // e.g. ['45', '116', '129'] for AirTemp group
-  title: string;        // e.g. "Air Temperature"
+  title: string; // e.g. "Air Temperature"
   timeRange?: [number, number]; // optional [start, end] in ms
 }
 
@@ -79,29 +79,30 @@ export default function TimeSeriesChart({ data, sensorKeys, title, timeRange }: 
     const sensorKeyPoints: Record<string, { x: number; y: number }[]> = {};
 
     let debugCount = 0;
-    // Filter out points with invalid (zero) timestamps
-    const validData = data.filter(p => p.timestamp > 0 && !isNaN(p.timestamp));
-    if (validData.length === 0) return <div className="text-center py-8 text-gray-400">No valid data points</div>;
-    
+    const validData = data.filter((p) => p.timestamp > 0 && !isNaN(p.timestamp));
+    if (validData.length === 0) {
+      return <div className="text-center py-8 text-gray-400">No valid data points</div>;
+    }
+
     for (const point of validData) {
       for (const key of sensorKeys) {
-          // Apply conversion if exists (e.g., PPFD -> W/m²)
-          const converter = conversionMap.get(key);
-          const convertedValue = converter ? converter(value as number) : (value as number);
-          
-          const timestampMs = point.timestamp;
-          
-          // Debug: log first few timestamps
-          if (debugCount < 3) {
-            console.log(`[Chart] Point ${debugCount}: timestamp=${point.timestamp}, normalized=${timestampMs}, type=${point.type}`);
-            debugCount++;
-          }
-          
-          if (!sensorKeyPoints[key]) {
-            sensorKeyPoints[key] = [];
-          }
-          sensorKeyPoints[key].push({ x: timestampMs, y: convertedValue });
+        // Apply conversion if exists (e.g., PPFD -> W/m²)
+        const converter = conversionMap.get(key);
+        const value = point[key];
+        const convertedValue = converter ? converter(value as number) : (value as number);
+
+        const timestampMs = point.timestamp;
+
+        // Debug: log first few timestamps
+        if (debugCount < 3) {
+          console.log(`[Chart] Point ${debugCount}: timestamp=${point.timestamp}, normalized=${timestampMs}, type=${point.type}`);
+          debugCount++;
         }
+
+        if (!sensorKeyPoints[key]) {
+          sensorKeyPoints[key] = [];
+        }
+        sensorKeyPoints[key].push({ x: timestampMs, y: convertedValue });
       }
     }
 
@@ -113,7 +114,6 @@ export default function TimeSeriesChart({ data, sensorKeys, title, timeRange }: 
     const datasets = Object.entries(sensorKeyPoints).map(([key, points], i) => {
       const colors = SENSOR_COLORS[i % SENSOR_COLORS.length];
       return {
-        // Use raw column name (actual DB column), not interpreted name
         label: key,
         data: points.sort((a, b) => a.x - b.x),
         borderColor: colors,
@@ -123,7 +123,6 @@ export default function TimeSeriesChart({ data, sensorKeys, title, timeRange }: 
         pointHitRadius: 8,
         tension: 0,
         fill: false,
-        // Assign to secondary Y-axis for power status on DRM plot
         yAxisID: isDrmGroup && key === 'DRM_POWER_STATUS_1_1_1' ? 'y1' : 'y',
       };
     });
@@ -134,12 +133,12 @@ export default function TimeSeriesChart({ data, sensorKeys, title, timeRange }: 
       responsive: true,
       maintainAspectRatio: false,
       animation: { duration: 300 },
-      interaction: { mode: 'nearest' as const, intersect: false },
+      interaction: { mode: 'nearest', intersect: false },
       plugins: {
         title: { display: true, text: title, font: { size: 14 } },
         legend: {
           display: true,
-          position: 'top' as const,
+          position: 'top',
         },
         tooltip: {
           callbacks: {
@@ -148,7 +147,6 @@ export default function TimeSeriesChart({ data, sensorKeys, title, timeRange }: 
               return new Date(items[0].parsed.x).toLocaleString('en-US', { timeZone: 'America/Denver' });
             },
             label: (item: any) => {
-              // Use dataset.label which is the raw column name
               const label = item.dataset?.label || '';
               return `${label}: ${item.parsed.y}`;
             },
@@ -171,12 +169,12 @@ export default function TimeSeriesChart({ data, sensorKeys, title, timeRange }: 
         },
         y: {
           title: { display: true, text: isDrmGroup ? 'Voltage (V)' : title },
-          position: isDrmGroup ? 'left' as const : undefined,
+          position: isDrmGroup ? 'left' : undefined,
         },
         ...(isDrmGroup && {
           y1: {
             title: { display: true, text: 'Power Status' },
-            position: 'right' as const,
+            position: 'right',
             grid: { drawOnChartArea: false },
           },
         }),
@@ -190,7 +188,7 @@ export default function TimeSeriesChart({ data, sensorKeys, title, timeRange }: 
     }
 
     return {
-      type: 'line' as const,
+      type: 'line',
       data: { datasets },
       options,
     };
@@ -202,7 +200,6 @@ export default function TimeSeriesChart({ data, sensorKeys, title, timeRange }: 
 
   return (
     <div className="w-full h-[280px] sm:h-[320px]">
-      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
       <ChartComponent {...(config as any)} />
     </div>
   );
