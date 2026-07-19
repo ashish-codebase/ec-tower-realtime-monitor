@@ -115,7 +115,7 @@ export default function WindRoseChart({ data }: Props) {
     showlegend: false,
     annotations: [
       {
-        text: 'Wind Rose (U vs V)',
+        text: 'Uncorrected Wind Rose (North Spar Unaccounted)',
         x: 0.5,
         y: 1.08,
         xref: 'paper',
