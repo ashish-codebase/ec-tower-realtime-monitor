@@ -91,6 +91,9 @@ function parseEcData(raw: string, siteName: string): TowerDataPoint[] {
   if (headerEnd !== -1) {
     body = raw.substring(headerEnd + 4);
   }
+  
+  // Debug: show first 500 chars of body
+  console.log(`[TCP] Body preview (${body.length} chars): ${JSON.stringify(body.substring(0, 500))}`);
 
   const rows = body.split('\n').map(line => line.trim()).filter(line => line);
   const parsedRows = rows.map(row => row.split('\t'));
