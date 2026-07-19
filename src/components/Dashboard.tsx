@@ -6,6 +6,7 @@ import { useSiteData } from '@/hooks/useSiteData';
 import { buildClusterGroups } from '@/lib/clusterGroups';
 import SiteSelector from './SiteSelector';
 import TimeSeriesChart from './TimeSeriesChart';
+import WindRoseChart from './WindRoseChart';
 import StatsTable from './StatsTable';
 import ErrorBanner from './ErrorBanner';
 import ThemeToggle from './ThemeToggle';
@@ -325,20 +326,47 @@ const loadDataRef = useRef(loadData);
       )} */}
 
       {/* Charts - grouped by K-means clusters */}
-      {filteredData.length > 0 && activeClusters.length > 0 && (
-        <div key={selectedIp} className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-          {activeClusters.map((cluster) => (
-            <div key={cluster.id} className="bg-white dark:bg-gray-800 rounded-lg shadow p-3 sm:p-4 border border-gray-200 dark:border-gray-700" style={{ minHeight: 280 }}>
-              <TimeSeriesChart 
-                data={filteredData} 
-                sensorKeys={cluster.keys} 
-                title={cluster.name}
-                timeRange={timeRange || undefined}
-              />
-            </div>
-          ))}
-        </div>
-      )}
+      {filteredData.length > 0 && activeClusters.length > 0 && (() => {
+        // Separate wind cluster for special rendering
+        const windCluster = activeClusters.find(c => c.name === 'Wind (U, V, W)');
+        const otherClusters = activeClusters.filter(c => c.name !== 'Wind (U, V, W)');
+        
+        return (
+          <>
+            {/* Wind Rose + U,V,W time series side by side */}
+            {windCluster && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-3 sm:p-4 border border-gray-200 dark:border-gray-700" style={{ minHeight: 280 }}>
+                  <TimeSeriesChart 
+                    data={filteredData} 
+                    sensorKeys={windCluster.keys} 
+                    title="Wind (U, V, W)"
+                    timeRange={timeRange || undefined}
+                  />
+                </div>
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-3 sm:p-4 border border-gray-200 dark:border-gray-700" style={{ minHeight: 280 }}>
+                  <WindRoseChart data={filteredData} />
+                </div>
+              </div>
+            )}
+            {/* Other sensor groups */}
+            {otherClusters.length > 0 && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                {otherClusters.map((cluster) => (
+                  <div key={cluster.id} className="bg-white dark:bg-gray-800 rounded-lg shadow p-3 sm:p-4 border border-gray-200 dark:border-gray-700" style={{ minHeight: 280 }}>
+                    <TimeSeriesChart 
+                      data={filteredData} 
+                      sensorKeys={cluster.keys} 
+                      title={cluster.name}
+                      timeRange={timeRange || undefined}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        );
+      })()}
 
       {/* Stats Table */}
       {filteredData.length > 0 && (
