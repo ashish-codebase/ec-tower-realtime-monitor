@@ -1,6 +1,9 @@
 // Re-export from python/timestamp_converter.js
-export function timestampToUTC(seconds: number, nanoseconds: number): string {
-    const date = new Date(seconds * 1000);
-    const iso = date.toISOString().replace(/\.\d{3}Z$/, "");
-    return `${iso}.${String(nanoseconds).padStart(9, "0")}Z`;
+// Convert timestamp (seconds or milliseconds) to ISO string
+export function timestampToUTC(ts: number, nanoseconds: number = 0): string {
+  // If timestamp is already in milliseconds (>= 1e12), don't multiply
+  const ms = ts >= 1e12 ? ts : ts * 1000;
+  const date = new Date(ms);
+  const iso = date.toISOString().replace(/\.\d{3}Z$/, "");
+  return `${iso}.${String(nanoseconds).padStart(9, "0")}Z`;
 }
