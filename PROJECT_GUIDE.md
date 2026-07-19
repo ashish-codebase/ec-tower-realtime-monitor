@@ -48,7 +48,7 @@ EC_Tower_Live_React/
 │   │   │   ├── poll-status/route.ts  # GET — Poll status endpoint
 │   │   │   └── cache-control/route.ts # GET/POST — Cache control
 │   │   ├── layout.tsx                # Root layout + metadata
-│   │   ├── page.tsx                  # Dashboard entry + background poller init
+│   │   ├── page.tsx                  # Dashboard entry (polling via cron → /api/fetch)
 │   │   └── globals.css               # Tailwind + CSS variables for theming
 │   │
 │   ├── components/
@@ -77,10 +77,10 @@ EC_Tower_Live_React/
 │   └── types/
 │       └── index.ts                 # TypeScript interfaces (Site, TowerDataPoint, etc.)
 │
-├── backend/                          # Standalone Express server (alternative to Next.js API)
-│   ├── server.js                     # Full Express app with TCP proxy + routes
-│   ├── scheduler.js                  # Periodic fetch scheduler (every 5 min)
-│   └── package.json                  # Express + cors + dotenv deps
+├── backend/                          # DEPRECATED - removed 2025
+│   ├── server.js                     # [DEPRECATED] Was Express server on port 3001
+│   ├── scheduler.js                  # [DEPRECATED] Was fetch scheduler
+│   └── package.json                  # No longer used
 │
 ├── data/                             # Tower data files (auto-created, NDJSON format)
 │
@@ -256,10 +256,10 @@ Server starts at **http://localhost:3000**.
 page.tsx → fetch('/api/sites') → reads site_name_ip_address.csv → returns [{name, ip}]
 ```
 
-### 2. Manual / Auto Fetch
+### 2. Manual / Scheduled Fetch
 
 ```
-Dashboard.tsx → fetch('/api/fetch') → poller.ts → tcp.ts → net.createConnection(port:50111)
+Dashboard.tsx → fetch('/api/fetch') OR Cron → route.ts → tcp.ts → net.createConnection(port:50111)
     ↓
 Tower responds with tab-separated DATASONIC/DATADAQM rows
     ↓
@@ -283,10 +283,10 @@ data/[...path]/route.ts → readSiteDataFromRedis(ip)
 → Dashboard sets state → TimeSeriesChart renders
 ```
 
-### 4. Background Polling
+### 4. Scheduled Fetching (via Cron)
 
 ```
-page.tsx → initPoller() → startPolling(sites)
+Cron job → GET /api/fetch (port 3000) → route.ts → tcp.ts → net.createConnection(port:50111)
     ↓
 every 5 minutes:
     Promise.allSettled(sites.map(site => fetchTowerData(site.ip)))
@@ -318,12 +318,12 @@ Steps:
 
 ## Configuration
 
-### Poll Interval
+### Fetch Interval
 
-**File**: `src/lib/poller.ts`
+**Controlled by cron job** — set to run every 5 minutes:
 
-```typescript
-const POLL_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes (change here)
+```bash
+*/5 * * * * curl -s http://localhost:3000/api/fetch > /dev/null 2>&1
 ```
 
 ### Max Data Points (per site)
@@ -519,9 +519,9 @@ Wrapper around `@redis/client`. Keys: `site:{ip}`. Supports read, save, and appe
 
 **Key exports**: `readSiteDataFromRedis(ip)`, `saveSiteDataToRedis(ip, points)`, `appendSiteDataToRedis(ip, newPoints)`
 
-### poller.ts — Background Polling
+### poller.ts — Background Polling (deprecated)
 
-Starts on server boot (from `page.tsx`). Runs immediately then every 5 minutes. Fetches from all sites in parallel (`Promise.allSettled`). Stores to both Redis and file.
+Previously started on server boot from `page.tsx`. Now deprecated — fetching is handled by cron job hitting `/api/fetch`.
 
 **Key exports**: `startPolling(sites)`, `stopPolling()`
 
@@ -584,35 +584,30 @@ npm start       # Runs production server on port from .env or 3000
 
 **Note**: Poller is disabled during Vercel build (`isBuildTime` check). Manual fetch via `/api/fetch` works in production.
 
-### Standalone Backend Server (Alternative)
+### Scheduled Fetching (Cron)
+
+Set up a cron job to ping the Next.js server every 5 minutes:
 
 ```bash
-cd backend
-npm install   # express, cors, dotenv, redis
-node server.js  # Runs on port 3001
+*/5 * * * * curl -s http://localhost:3000/api/fetch > /dev/null 2>&1
 ```
 
-This Express server includes:
-
-- TCP proxy to towers
-- Redis/disk storage
-- Periodic scheduler (every 5 min)
-- API routes: `/api/sites`, `/api/fetch`, `/api/data/:siteName.json`, `/api/status`
+This triggers data fetching via `/api/fetch` and keeps the server alive. No separate backend needed.
 
 ---
 
 ## Troubleshooting
 
-| Problem                        | Solution                                                                          |
-| ------------------------------ | --------------------------------------------------------------------------------- |
-| "No data loaded yet"           | Click "Fetch Now". Check tower IPs are reachable (`telnet <IP> 50111`)            |
-| Connection errors on all sites | Verify network access to tower IPs on port **50111** (not 50311)                  |
-| Charts not showing data        | Check browser console for parse errors. Verify data files exist in `./data/`      |
-| Redis connection fails         | Set `REDIS_URL` in `.env.local`. App falls back to JSON file storage              |
-| Poller not running             | Check `page.tsx` initPoller() logs in server console. Not run during Vercel build |
-| Data not updating              | Redis may have stale data. Use "Reset Redis" button or clear manually             |
-| Port 3000 already in use       | Change port: `next dev -p 3001`                                                   |
-| Tests failing                  | Ensure `@testing-library/jest-dom` is installed. Check `tests/setup.ts` mocks     |
+| Problem                        | Solution                                                                      |
+| ------------------------------ | ----------------------------------------------------------------------------- |
+| "No data loaded yet"           | Click "Fetch Now". Check tower IPs are reachable (`telnet <IP> 50111`)        |
+| Connection errors on all sites | Verify network access to tower IPs on port **50111** (not 50311)              |
+| Charts not showing data        | Check browser console for parse errors. Verify data files exist in `./data/`  |
+| Redis connection fails         | Set `REDIS_URL` in `.env.local`. App falls back to JSON file storage          |
+| Data not fetching              | Cron job should hit /api/fetch every 5 min. Check cron logs on your host.     |
+| Data not updating              | Redis may have stale data. Use "Reset Redis" button or clear manually         |
+| Port 3000 already in use       | Change port: `next dev -p 3001`                                               |
+| Tests failing                  | Ensure `@testing-library/jest-dom` is installed. Check `tests/setup.ts` mocks |
 
 ### Common TCP Issues
 

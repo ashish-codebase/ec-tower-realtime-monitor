@@ -1,3 +1,9 @@
+/**
+ * DEPRECATED - Auto-polling removed 2025.
+ * Data fetching now handled by cron job hitting /api/fetch (port 3000).
+ * Kept for reference only — not imported anywhere.
+ */
+
 import { Site, TowerDataPoint } from '@/types';
 import { fetchTowerData } from './tcp';
 import { appendSiteData, ensureDataDir } from './storage';

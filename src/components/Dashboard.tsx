@@ -108,7 +108,7 @@ const loadDataRef = useRef(loadData);
     }
   }, [selectedIp]);
 
-  // Auto-reload data every 5 minutes (poller already fetches from towers)
+  // Auto-reload display data every 5 minutes (cron job fetches from towers)
   useEffect(() => {
     console.log(`[Dashboard] Starting auto-reload for ${selectedIp}`);
     const interval = setInterval(async () => {
