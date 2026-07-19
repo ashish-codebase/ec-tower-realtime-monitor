@@ -38,9 +38,10 @@ async function initRedisClient(): Promise<RedisClientType | null> {
   }
 }
 
-// Normalize timestamp: if < 1e12 it's seconds, convert to milliseconds
+// Normalize timestamp: only call this at ENTRY POINTS (API fetch).
+// Data stored in Redis/storage is always in milliseconds — do NOT normalize on reads.
 function normalizeTs(ts: number): number {
-  if (typeof ts !== 'number' || ts > 1e12) return ts;
+  if (typeof ts !== 'number' || ts >= 1e12) return ts;
   return ts * 1000;
 }
 
@@ -53,8 +54,8 @@ export async function readSiteDataFromRedis(ip: string): Promise<TowerDataPoint[
     if (!raw) return null;
     const data = JSON.parse(raw);
     if (!Array.isArray(data)) return null;
-    // Normalize any seconds timestamps to milliseconds
-    return data.map(p => ({ ...p, timestamp: normalizeTs(p.timestamp) }));
+    // Data is already normalized to ms when stored — return as-is
+    return data;
   } catch (err) {
     console.error('[Redis] read error:', err);
     return null;
@@ -83,8 +84,7 @@ export async function appendSiteDataToRedis(ip: string, newPoints: TowerDataPoin
   try {
     const raw = await client.get(getRedisKey(ip));
     let existing: TowerDataPoint[] = raw ? JSON.parse(raw) : [];
-    // Normalize existing timestamps (fix old seconds→ms)
-    existing = existing.map(p => ({ ...p, timestamp: normalizeTs(p.timestamp) }));
+    // Existing data is already in ms — no normalization needed
     const seenKeys = new Set<string>();
 
     for (const point of existing) {

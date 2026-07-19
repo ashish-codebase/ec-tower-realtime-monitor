@@ -16,9 +16,10 @@ function getFilePath(ip: string): string {
   return path.join(DATA_DIR, `${ip.replace(/\./g, '_')}.json`);
 }
 
-// Normalize timestamp: if < 1e12 it's seconds, convert to milliseconds
+// Normalize timestamp: only call at ENTRY POINTS (API fetch).
+// Data stored on disk is always in milliseconds — do NOT normalize on reads.
 function normalizeTs(ts: number): number {
-  if (typeof ts !== 'number' || ts > 1e12) return ts;
+  if (typeof ts !== 'number' || ts >= 1e12) return ts;
   return ts * 1000;
 }
 
@@ -34,7 +35,8 @@ export function readSiteData(ip: string): TowerDataPoint[] {
     if (!trimmed) continue;
     try {
       const p = JSON.parse(trimmed);
-      points.push({ ...p, timestamp: normalizeTs(p.timestamp) });
+      // Data is already in ms when stored — return as-is
+      points.push(p);
     } catch {
       // skip malformed
     }
@@ -51,8 +53,7 @@ export function appendSiteData(ip: string, newPoints: TowerDataPoint[]) {
 
   const filePath = getFilePath(ip);
   let existing = readSiteData(ip);
-  // Normalize timestamps (fix any old seconds→ms)
-  existing = existing.map(p => ({ ...p, timestamp: normalizeTs(p.timestamp) }));
+  // Existing data is already in ms — no normalization needed
   const seenKeys = new Set<string>();
 
   for (const p of existing) {
@@ -76,7 +77,7 @@ export function appendSiteData(ip: string, newPoints: TowerDataPoint[]) {
   const MAX_POINTS = 2880;
   let updated = readSiteData(ip);
   if (updated.length > MAX_POINTS) {
-    updated = updated.map(p => ({ ...p, timestamp: normalizeTs(p.timestamp) }));
+    // Data is already in ms — no normalization needed
     const kept = updated.slice(-MAX_POINTS);
     fs.writeFileSync(filePath, kept.map((p) => JSON.stringify(p)).join('\n') + '\n');
     console.log(`[Storage] Trimmed ${ip} from ${updated.length} to ${kept.length} points`);
