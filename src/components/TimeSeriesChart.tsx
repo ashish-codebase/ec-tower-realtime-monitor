@@ -79,11 +79,12 @@ export default function TimeSeriesChart({ data, sensorKeys, title, timeRange }: 
     const sensorKeyPoints: Record<string, { x: number; y: number }[]> = {};
 
     let debugCount = 0;
-    for (const point of data) {
+    // Filter out points with invalid (zero) timestamps
+    const validData = data.filter(p => p.timestamp > 0 && !isNaN(p.timestamp));
+    if (validData.length === 0) return <div className="text-center py-8 text-gray-400">No valid data points</div>;
+    
+    for (const point of validData) {
       for (const key of sensorKeys) {
-        // Check if the key exists in the point (for both old and new format)
-        const value = point[key];
-        if (value !== undefined && !isNaN(value as number)) {
           // Apply conversion if exists (e.g., PPFD -> W/m²)
           const converter = conversionMap.get(key);
           const convertedValue = converter ? converter(value as number) : (value as number);
