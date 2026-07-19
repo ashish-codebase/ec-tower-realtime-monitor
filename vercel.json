@@ -1,0 +1,10 @@
+{
+  /* Keep-alive: shorter interval prevents functions from going cold. Vercel Edge Functions go cold after ~30 min of inactivity. */
+  "cron": [
+    {
+      "cron": "*/2 * * * *",
+      "url": "/api/fetch",
+      "method": "GET"
+    }
+  ]
+}
