@@ -1,1 +1,9 @@
-{"cron":[{"cron":"*/2 * * * *","url":"/api/fetch","method":"GET"}]}
+{
+  "cron": [
+    {
+      "cron": "*/5 * * * *",
+      "url": "/api/fetch",
+      "method": "GET"
+    }
+  ]
+}
