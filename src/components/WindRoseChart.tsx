@@ -61,7 +61,7 @@ export default function WindRoseChart({ data }: Props) {
       
       let deg = (Math.atan2(v, u) * 180) / Math.PI;
       if (deg < 0) deg += 360;
-      const dir = ((deg + 180) % 360).toFixed(1);
+      const dir = deg.toFixed(1);
       
       points.push({
         r: result.r,
