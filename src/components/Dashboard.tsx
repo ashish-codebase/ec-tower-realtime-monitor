@@ -124,6 +124,20 @@ const loadDataRef = useRef(loadData);
     };
   }, [selectedIp, sites, loadData]);
 
+  // Reload immediately when tab becomes visible (prevents stale data after idle)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && selectedIp) {
+        console.log('[Dashboard] Tab visible — reloading data');
+        loadDataRef.current();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [selectedIp, loadData]);
+
 
 
   // Filter data by time range - DISABLED (show all)
