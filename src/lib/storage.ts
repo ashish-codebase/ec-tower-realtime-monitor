@@ -16,6 +16,12 @@ function getFilePath(ip: string): string {
   return path.join(DATA_DIR, `${ip.replace(/\./g, '_')}.json`);
 }
 
+// Normalize timestamp: if < 1e12 it's seconds, convert to milliseconds
+function normalizeTs(ts: number): number {
+  if (typeof ts !== 'number' || ts > 1e12) return ts;
+  return ts * 1000;
+}
+
 export function readSiteData(ip: string): TowerDataPoint[] {
   const filePath = getFilePath(ip);
   if (!fs.existsSync(filePath)) return [];
@@ -27,7 +33,8 @@ export function readSiteData(ip: string): TowerDataPoint[] {
     const trimmed = line.trim();
     if (!trimmed) continue;
     try {
-      points.push(JSON.parse(trimmed));
+      const p = JSON.parse(trimmed);
+      points.push({ ...p, timestamp: normalizeTs(p.timestamp) });
     } catch {
       // skip malformed
     }
@@ -43,7 +50,9 @@ export function appendSiteData(ip: string, newPoints: TowerDataPoint[]) {
   const resampled = resampleTo5Min(newPoints);
 
   const filePath = getFilePath(ip);
-  const existing = readSiteData(ip);
+  let existing = readSiteData(ip);
+  // Normalize timestamps (fix any old seconds→ms)
+  existing = existing.map(p => ({ ...p, timestamp: normalizeTs(p.timestamp) }));
   const seenKeys = new Set<string>();
 
   for (const p of existing) {
@@ -65,8 +74,9 @@ export function appendSiteData(ip: string, newPoints: TowerDataPoint[]) {
 
   // Keep max 2880 points (circular buffer - oldest gets replaced)
   const MAX_POINTS = 2880;
-  const updated = readSiteData(ip);
+  let updated = readSiteData(ip);
   if (updated.length > MAX_POINTS) {
+    updated = updated.map(p => ({ ...p, timestamp: normalizeTs(p.timestamp) }));
     const kept = updated.slice(-MAX_POINTS);
     fs.writeFileSync(filePath, kept.map((p) => JSON.stringify(p)).join('\n') + '\n');
     console.log(`[Storage] Trimmed ${ip} from ${updated.length} to ${kept.length} points`);
@@ -74,5 +84,5 @@ export function appendSiteData(ip: string, newPoints: TowerDataPoint[]) {
 }
 
 export function readAllSiteData(ip: string): TowerDataPoint[] {
-  return readSiteData(ip);
+  return readSiteData(ip); // already normalized
 }

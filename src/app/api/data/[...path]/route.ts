@@ -41,6 +41,12 @@ async function loadSitesFromCsv() {
   }
 }
 
+// Normalize timestamp: if < 1e12 it's seconds, convert to milliseconds
+function normalizeTimestamp(ts: number): number {
+  if (typeof ts !== 'number' || ts > 1e12) return ts; // already ms or invalid
+  return ts * 1000; // seconds -> milliseconds
+}
+
 // Convert timestamps to readable ISO strings using Python converter
 import { timestampToUTC } from '@/lib/timestampConverter';
 
@@ -49,9 +55,11 @@ function addReadableTimestamps(content: string): string {
     const data = JSON.parse(content);
     if (Array.isArray(data)) {
       const transformed = data.map(point => {
-        const iso = new Date(point.timestamp).toISOString();
+        const ts = normalizeTimestamp(point.timestamp);
+        const iso = new Date(ts).toISOString();
         return {
           ...point,
+          timestamp: ts, // normalize back to ms
           timestamp_readable: iso,
           timestamp_utc: iso.replace('T', ' ').replace('Z', ' UTC')
         };
