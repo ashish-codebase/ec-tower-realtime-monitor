@@ -2,193 +2,148 @@
 
 import { useMemo, useRef } from 'react';
 import { TowerDataPoint } from '@/types';
-import '@/lib/chart-init';
-import { Chart as ChartComponent } from 'react-chartjs-2';
-import {
-  Chart,
-  ScatterController,
-  CategoryScale,
-  LinearScale,
-  Tooltip,
-  PointElement,
-} from 'chart.js';
+import dynamic from 'next/dynamic';
 
-Chart.register(ScatterController, PointElement, CategoryScale, LinearScale, Tooltip);
+// Dynamically import Plotly to avoid SSR issues
+const Plot = dynamic(() => import('react-plotly.js'), { ssr: false });
 
 interface Props {
   data: TowerDataPoint[];
 }
 
-// Draw arrow at chart pixel position (px, py), angle in radians, length in px
-function drawArrow(ctx: CanvasRenderingContext2D, px: number, py: number, angle: number, length: number) {
-  const headLen = Math.min(8, length * 0.4);
+// Convert wind speed + direction (degrees, meteorological) → polar coordinates
+function polarFromWind(u: number, v: number): { r: number; theta: number; speed: number } | null {
+  const speed = Math.sqrt(u * u + v * v);
+  if (speed < 0.01) return null; // skip near-zero
+  
+  // Meteorological direction: angle FROM which wind blows
+  // atan2(V, U) gives angle from +U axis toward +V axis in radians
+  let deg = (Math.atan2(v, u) * 180) / Math.PI;
+  if (deg < 0) deg += 360;
+  
+  // Plotly polar: theta=0 is East (right), increases counterclockwise
+  // Meteorological: 0° = from North, 90° = from East
+  // Convert: plotly_theta = 90 - meteorological_degrees
+  let theta = 90 - deg;
+  if (theta < 0) theta += 360;
+  
+  return { r: speed, theta, speed };
+}
 
-  const dx = Math.cos(angle) * length;
-  const dy = Math.sin(angle) * length;
-
-  // Shaft
-  ctx.beginPath();
-  ctx.moveTo(px, py);
-  ctx.lineTo(px + dx, py + dy);
-  ctx.stroke();
-
-  // Arrowhead
-  const tipX = px + dx;
-  const tipY = py + dy;
-  ctx.beginPath();
-  ctx.moveTo(tipX, tipY);
-  ctx.lineTo(
-    tipX - headLen * Math.cos(angle - Math.PI / 6),
-    tipY - headLen * Math.sin(angle - Math.PI / 6)
-  );
-  ctx.lineTo(
-    tipX - headLen * Math.cos(angle + Math.PI / 6),
-    tipY - headLen * Math.sin(angle + Math.PI / 6)
-  );
-  ctx.closePath();
-  ctx.fill();
+function speedColor(speed: number): string {
+  // Blue (calm) → Cyan → Green → Yellow → Red (strong)
+  const maxSpeed = 15; // typical max for EC towers
+  const t = Math.min(speed / maxSpeed, 1);
+  const h = 210 * (1 - t);
+  return `hsl(${h}, 85%, ${45 + 15 * (1 - t)}%)`;
 }
 
 export default function WindRoseChart({ data }: Props) {
-  const chartRef = useRef<Chart<'scatter'> | null>(null);
+  const plotDivRef = useRef<HTMLDivElement>(null);
 
-  const chartData = useMemo(() => {
+  const traceData = useMemo(() => {
     if (!data || data.length === 0) return null;
 
-    // Compute wind speed & direction for each point that has both U and V
-    const points: { x: number; y: number; speed: number; dir: number }[] = [];
+    // Group points into wind speed bins by direction sector
+    // Plotly wind rose: polar scatter with color encoding
+    const points: { r: number; theta: number; text: string; color: string }[] = [];
     let maxSpeed = 0;
 
     for (const p of data) {
       const u = Number(p.U);
       const v = Number(p.V);
       if (isNaN(u) || isNaN(v)) continue;
-      // Skip near-zero to avoid wild direction flips
-      if (Math.abs(u) < 0.01 && Math.abs(v) < 0.01) continue;
-
-      const speed = Math.sqrt(u * u + v * v);
-      if (speed > maxSpeed) maxSpeed = speed;
-      // atan2(V, U) gives angle from +U axis toward +V axis
-      // In screen coords: U→right, V→down => angle matches visual direction
-      const dir = Math.atan2(v, u);
-      points.push({ x: u, y: v, speed, dir });
+      
+      const result = polarFromWind(u, v);
+      if (!result) continue;
+      
+      if (result.r > maxSpeed) maxSpeed = result.r;
+      
+      let deg = (Math.atan2(v, u) * 180) / Math.PI;
+      if (deg < 0) deg += 360;
+      const dir = ((deg + 180) % 360).toFixed(1);
+      
+      points.push({
+        r: result.r,
+        theta: result.theta,
+        text: `Speed: ${result.r.toFixed(2)} m/s\nDir: ${dir}°`,
+        color: speedColor(result.speed),
+      });
     }
 
     if (points.length === 0) return null;
 
-    // Color scale: blue (calm) → cyan → green → yellow → red (strong)
-    function speedColor(speed: number): string {
-      const t = Math.min(speed / maxSpeed, 1);
-      // Use HSL: hue 210 (blue) → 0 (red)
-      const h = 210 * (1 - t);
-      return `hsl(${h}, 85%, ${45 + 15 * (1 - t)}%)`;
-    }
+    // Use a subset for performance (every Nth point)
+    const maxPoints = 2000;
+    const step = Math.max(1, Math.floor(points.length / maxPoints));
+    const sampled = points.filter((_, i) => i % step === 0);
 
     return {
-      datasets: [
-        {
-          label: 'Wind Rose',
-          data: points.map((p) => ({ x: p.x, y: p.y, speed: p.speed, dir: p.dir })),
-          backgroundColor: points.map((p) => speedColor(p.speed)),
-          pointRadius: 3,
-          pointHoverRadius: 6,
-        },
-      ],
+      type: 'scatterpolar' as const,
+      mode: 'markers' as const,
+      r: sampled.map(p => p.r),
+      theta: sampled.map(p => p.theta),
+      text: sampled.map(p => p.text),
+      marker: {
+        size: 4,
+        color: sampled.map(p => speedColor(parseFloat(p.color))),
+        opacity: 0.7,
+        line: { width: 0.5, color: 'rgba(255,255,255,0.3)' },
+      },
     };
   }, [data]);
 
-  // Arrow drawing plugin — runs after points are drawn
-  const arrowPlugin = {
-    id: 'windArrows' as string,
-    afterDatasetsDraw(chart: Chart) {
-      const meta = chart.getDatasetMeta(0);
-      if (!meta?.data || !chartRef.current) return;
-
-      const ctx = chart.ctx;
-      const origStroke = ctx.stroke.bind(ctx);
-      const origFill = ctx.fill.bind(ctx);
-
-      ctx.strokeStyle = 'rgba(50, 50, 50, 0.5)';
-      ctx.fillStyle = 'rgba(50, 50, 50, 0.6)';
-      ctx.lineWidth = 1;
-
-      for (let i = 0; i < meta.data.length; i++) {
-        const el = meta.data[i] as any;
-        if (!el?.x || !el?.y) continue;
-
-        const pt = chartData!.datasets[0].data[i] as any;
-        if (!pt?.speed) continue;
-
-        // Scale arrow length: 8px for calm, up to 35px for max speed
-        const arrowLen = 8 + (pt.speed / Math.max(maxSpeed(chartData!.datasets[0].data), 1)) * 27;
-        drawArrow(ctx, el.x, el.y, pt.dir, arrowLen);
-      }
-
-      ctx.stroke = origStroke;
-      ctx.fill = origFill;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const layout = useMemo(() => ({
+    polar: {
+      radialaxis: {
+        title: { text: 'Wind Speed (m/s)', font: { size: 12 } },
+        tickfont: { size: 10 },
+        range: traceData ? [0, Math.ceil(Math.max(...(traceData.r as number[]) || [15]))] : [0, 15],
+      },
+      angularaxis: {
+        direction: 'clockwise' as const, // meteorological convention
+        rotation: 90, // North at top
+        tickfont: { size: 11 },
+        tickvals: [0, 45, 90, 135, 180, 225, 270, 315],
+        ticktext: ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'],
+      },
     },
-  };
-
-  // Helper: get max speed from dataset
-  function maxSpeed(datasetData: any[]): number {
-    let m = 0;
-    for (const d of datasetData) {
-      if (d.speed > m) m = d.speed;
-    }
-    return m || 1;
-  }
-
-  const options = useMemo(() => ({
-    responsive: true,
-    maintainAspectRatio: false,
-    animation: { duration: 300 },
-    plugins: {
-      title: {
-        display: true,
+    paper_bgcolor: 'rgba(0,0,0,0)',
+    plot_bgcolor: 'rgba(0,0,0,0)',
+    margin: { l: 40, r: 40, t: 40, b: 40 },
+    showlegend: false,
+    annotations: [
+      {
         text: 'Wind Rose (U vs V)',
-        font: { size: 14 },
+        x: 0.5,
+        y: 1.08,
+        xref: 'paper',
+        yref: 'paper',
+        showarrow: false,
+        font: { size: 14, weight: 'bold' },
       },
-      legend: { display: false },
-      tooltip: {
-        callbacks: {
-          label: (item: any) => {
-            const d = item.raw;
-            if (!d) return '';
-            const speed = Math.sqrt(d.x * d.x + d.y * d.y).toFixed(2);
-            // Convert to meteorological direction (from where wind comes)
-            let deg = (Math.atan2(d.y, d.x) * 180) / Math.PI;
-            if (deg < 0) deg += 360;
-            const dir = ((deg + 180) % 360).toFixed(1);
-            return [`Speed: ${speed} m/s`, `Direction: ${dir}°`];
-          },
-        },
-      },
-    },
-    scales: {
-      x: {
-        title: { display: true, text: 'U (N-S, +N)', font: { size: 12 } },
-        grid: { color: 'rgba(128,128,128,0.15)' },
-      },
-      y: {
-        title: { display: true, text: 'V (E-W, +E)', font: { size: 12 } },
-        grid: { color: 'rgba(128,128,128,0.15)' },
-      },
-    },
-  }), [chartData]);
+    ],
+  }), [traceData]);
 
-  if (!chartData) {
+  const config = useMemo(() => ({
+    displayModeBar: false,
+    responsive: true,
+  }), []);
+
+  if (!traceData) {
     return <div className="text-center py-8 text-gray-400">No U/V data for wind rose</div>;
   }
 
   return (
-    <div className="w-full h-[320px] sm:h-[360px]">
+    <div ref={plotDivRef} style={{ width: '100%', height: '100%' }}>
       {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-      <ChartComponent
-        ref={chartRef as any}
-        type="scatter"
-        data={chartData}
-        options={options}
-        plugins={[arrowPlugin]}
+      <Plot
+        data={[traceData as any]}
+        layout={layout}
+        config={config}
+        useResizeHandler={true}
+        style={{ width: '100%', height: '100%' }}
       />
     </div>
   );
