@@ -1,9 +1,8 @@
 {
-  "cron": [
+  "crons": [
     {
-      "cron": "*/5 * * * *",
-      "url": "/api/fetch",
-      "method": "GET"
+      "path": "/api/fetch",
+      "schedule": "*/5 * * * *"
     }
   ]
 }
