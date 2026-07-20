@@ -7,6 +7,10 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Optional
 
+from dotenv import load_dotenv
+# Load .env from project root (parent of backend/)
+load_dotenv(dotenv_path=Path(__file__).parent.parent / ".env")
+
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel

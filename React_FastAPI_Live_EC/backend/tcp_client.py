@@ -34,26 +34,33 @@ async def fetch_tower_data(ip: str, site_name: str = "unknown") -> list[dict]:
     """Fetch raw data from an EC tower via TCP and parse it."""
     await _semaphore.acquire()
     try:
+        print(f"[TCP] Connecting to {ip}:{PORT}...")
         reader, writer = await asyncio.wait_for(
             asyncio.open_connection(ip, PORT),
             timeout=TOTAL_TIMEOUT_S,
         )
+        print(f"[TCP] Connected to {ip}:{PORT}")
 
         # Send HTTP-style request
         request = f"GET / HTTP/1.0\r\nHost: {ip}:{PORT}\r\n\r\n"
+        print(f"[TCP] Sending request: {request.strip()}")
         writer.write(request.encode())
         await writer.drain()
 
         raw = ""
         daqm_timestamps_seen = 0
         first_daqm_ts = ""
+        chunks_received = 0
 
         while True:
             try:
                 chunk = await asyncio.wait_for(reader.read(4096), timeout=30)
                 if not chunk:
+                    print(f"[TCP] Connection closed by server after {chunks_received} chunks")
                     break
+                chunks_received += 1
                 text = chunk.decode("utf-8", errors="replace")
+                print(f"[TCP] Chunk {chunks_received}: {len(text)} chars, first 100: {text[:100].replace(chr(10), ' ')}")
                 lines = text.split("\n")
                 for line in lines:
                     parts = line.strip().split("\t")
@@ -62,13 +69,16 @@ async def fetch_tower_data(ip: str, site_name: str = "unknown") -> list[dict]:
                         if daqm_timestamps_seen == 0:
                             first_daqm_ts = ts
                             daqm_timestamps_seen = 1
+                            print(f"[TCP] First DATADAQM timestamp: {ts}")
                         elif ts != first_daqm_ts and daqm_timestamps_seen == 1:
                             raw += line + "\n"
+                            print(f"[TCP] Second DATADAQM timestamp differs ({ts} != {first_daqm_ts}), stopping read")
                             break
                     raw += line + "\n"
-                if daqm_timestamps_seen > 1:
+                if daqm_timestamps_seen == 1:
                     break
             except asyncio.TimeoutError:
+                print(f"[TCP] Read timeout after {chunks_received} chunks, stopping")
                 break
 
         writer.close()
@@ -77,9 +87,18 @@ async def fetch_tower_data(ip: str, site_name: str = "unknown") -> list[dict]:
         except Exception:
             pass
 
-        return parse_ec_data(raw, site_name)
+        print(f"[TCP] Received {len(raw)} bytes raw data from {site_name}")
+        print(f"[TCP] Raw data preview (first 500 chars): {raw[:500].replace(chr(10), ' | ')}")
+
+        result = parse_ec_data(raw, site_name)
+        print(f"[TCP] Parsed {len(result)} data points from {site_name}")
+        if result:
+            print(f"[TCP] First point: {result[0]}")
+            print(f"[TCP] Last point: {result[-1]}")
+        return result
 
     except Exception as e:
+        print(f"[TCP] FAILED to connect to {ip}:{PORT} — {type(e).__name__}: {e}")
         raise ConnectionError(f"Failed to connect to {ip}:{PORT} — {e}")
 
 

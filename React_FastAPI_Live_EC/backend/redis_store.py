@@ -8,7 +8,7 @@ import redis
 
 
 def _get_redis_client():
-    url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+    url = os.getenv("REDIS_URL", "redis://default:ya6pISMycFz4pyfHX9NCFBecD7SCtNYA@consonant-carved-profit-84866.db.redis.io:10685")
     return redis.from_url(url, decode_responses=True, socket_connect_timeout=5)
 
 
