@@ -1,0 +1,296 @@
+"""FastAPI backend — TCP fetch, data parsing, storage, API endpoints."""
+
+import asyncio
+import csv
+import os
+from contextlib import asynccontextmanager
+from pathlib import Path
+from typing import Optional
+
+from fastapi import FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+
+from tcp_client import fetch_tower_data, PORT
+from column_registry import column_registry
+from storage import append_site_data, get_site_data, clear_site_data, ensure_data_dir
+from redis_store import (
+    append_site_data_to_redis,
+    get_site_data_from_redis,
+    clear_redis_site,
+    clear_all_redis,
+)
+from sensor_settings import get_settings
+
+
+# ── State ──────────────────────────────────────────────────────────────
+
+_fetch_in_progress = False
+_background_task: Optional[asyncio.Task] = None
+
+
+# ── Config ─────────────────────────────────────────────────────────────
+
+CSV_PATH = Path(__file__).parent.parent / "site_name_ip_address.csv"
+
+
+def load_sites_from_csv() -> list[dict]:
+    """Load site configs from CSV file."""
+    sites = []
+    if not CSV_PATH.exists():
+        return sites
+    with open(CSV_PATH, "r", newline="") as f:
+        reader = csv.reader(f)
+        for row in reader:
+            if len(row) < 2:
+                continue
+            name = row[0].strip()
+            ip = row[1].strip()
+            if not name or not ip or name.startswith("#"):
+                continue
+            sites.append({"name": name, "ip": ip})
+    return sites
+
+
+# ── Fetch orchestrator ────────────────────────────────────────────────
+
+async def _perform_fetch():
+    """Fetch data from all configured towers."""
+    global _fetch_in_progress
+    try:
+        ensure_data_dir()
+        sites = load_sites_from_csv()
+        if not sites:
+            print("[Fetch] No sites configured")
+            return
+
+        results = []
+        for site in sites:
+            try:
+                print(f"[Fetch] Fetching {site['name']} ({site['ip']})...")
+                data = await fetch_tower_data(site["ip"], site["name"])
+                print(f"[Fetch] Got {len(data)} points from {site['name']}")
+
+                if data:
+                    await append_site_data_to_redis(site["ip"], data)
+                    append_site_data(site["ip"], data)
+                    # Register columns from this tower's data
+                    if data and len(data) > 0:
+                        cols = [k for k in data[0].keys() if k not in ("timestamp",)]
+                        column_registry.add_tower_columns(site["name"], cols)
+
+                results.append({
+                    "name": site["name"],
+                    "ip": site["ip"],
+                    "status": "ok",
+                    "count": len(data),
+                })
+            except Exception as e:
+                print(f"[Fetch] Error for {site['name']}: {e}")
+                results.append({
+                    "name": site["name"],
+                    "ip": site["ip"],
+                    "status": "error",
+                    "error": str(e),
+                })
+
+        ok = sum(1 for r in results if r["status"] == "ok")
+        fail = len(results) - ok
+        print(f"[Fetch] Complete: {ok} ok, {fail} failed")
+
+    except Exception as e:
+        print(f"[Fetch] Fatal error: {e}")
+    finally:
+        _fetch_in_progress = False
+
+
+# ── Pydantic models ───────────────────────────────────────────────────
+
+class FetchResult(BaseModel):
+    name: str
+    ip: str
+    status: str
+    count: Optional[int] = None
+    error: Optional[str] = None
+
+
+# ── App ────────────────────────────────────────────────────────────────
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Start background poller on startup."""
+    # Load existing columns from stored data
+    ensure_data_dir()
+    yield
+    # Cleanup on shutdown
+    global _background_task
+    if _background_task and not _background_task.done():
+        _background_task.cancel()
+
+
+app = FastAPI(
+    title="EC Tower Live Monitor API",
+    description="FastAPI backend for eddy covariance tower data",
+    version="1.0.0",
+    lifespan=lifespan,
+)
+
+# CORS — allow React frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Restrict in production: ["http://localhost:5173"]
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+# ── Endpoints ──────────────────────────────────────────────────────────
+
+@app.get("/api/sites")
+async def get_sites():
+    """List all configured sites."""
+    return load_sites_from_csv()
+
+
+@app.get("/api/fetch")
+async def trigger_fetch():
+    """Trigger a manual data fetch from all towers. Returns immediately."""
+    global _fetch_in_progress, _background_task
+
+    if _fetch_in_progress:
+        return {"status": "running"}
+
+    _fetch_in_progress = True
+    _background_task = asyncio.create_task(_perform_fetch())
+    return {"status": "started"}
+
+
+@app.get("/api/fetch/status")
+async def get_fetch_status():
+    """Check if a fetch is currently in progress."""
+    return {"in_progress": _fetch_in_progress}
+
+
+@app.get("/api/data/{site_ip}")
+async def get_data(site_ip: str, resample_5min: bool = Query(default=False)):
+    """Get stored data for a site. Falls back to JSON if Redis unavailable."""
+    # Try Redis first
+    data = get_site_data_from_redis(site_ip)
+
+    # Fallback to JSON file
+    if data is None or len(data) == 0:
+        data = get_site_data(site_ip)
+
+    if data is None:
+        data = []
+
+    # Resample to 5-min if requested
+    if resample_5min and len(data) > 1:
+        data = _resample_to_5min(data)
+
+    return data
+
+
+@app.post("/api/cache-control/clear")
+async def clear_cache(site_ip: str = Query(default=None)):
+    """Clear cached data. If site_ip provided, clear only that site."""
+    if site_ip:
+        clear_redis_site(site_ip)
+        clear_site_data(site_ip)
+        return {"status": "cleared", "site": site_ip}
+    else:
+        clear_all_redis()
+        ensure_data_dir()
+        for f in (Path(__file__).parent.parent / "data").glob("*.json"):
+            f.unlink()
+        return {"status": "cleared_all"}
+
+
+@app.get("/api/poll-status")
+async def get_poll_status():
+    """Get polling status info."""
+    return {
+        "message": "Polling is active (every 5 min)",
+        "interval": "5 minutes",
+    }
+
+
+@app.get("/api/columns")
+async def get_columns(site_name: Optional[str] = Query(default=None)):
+    """Get column registry. Optionally filter to a specific site."""
+    if site_name:
+        return {
+            "columns": column_registry.get_tower_columns(site_name),
+        }
+    return {
+        "allColumns": column_registry.get_all_columns(),
+        "towerColumns": column_registry.to_dict()["towerColumns"],
+    }
+
+
+@app.get("/api/sensor-groups")
+async def get_sensor_groups():
+    """Get sensor group settings."""
+    settings = get_settings()
+    groups = []
+    for g in settings.sensor_groups:
+        entry = {"name": g.name, "keys": g.keys}
+        if g.convert:
+            # Store conversion info — can't serialize function directly
+            if "PPFD" in g.name:
+                entry["convert"] = "multiply_0.51"  # PPFD -> W/m²
+        groups.append(entry)
+    return {
+        "sensorGroups": groups,
+        "allDaqmColumns": settings.all_daqm_columns,
+    }
+
+
+@app.get("/api/health")
+async def health_check():
+    """Health check endpoint."""
+    return {"status": "ok"}
+
+
+# ── Resample helper (mirrors src/lib/resample.ts) ─────────────────────
+
+def _resample_to_5min(data: list[dict]) -> list[dict]:
+    """Downsample data to 5-minute intervals by averaging."""
+    FIVE_MIN_MS = 5 * 60 * 1000
+
+    if len(data) <= 1:
+        return data
+
+    buckets: dict[int, list[dict]] = {}
+    for point in data:
+        bucket = int(point["timestamp"] // FIVE_MIN_MS)
+        if bucket not in buckets:
+            buckets[bucket] = []
+        buckets[bucket].append(point)
+
+    result: list[dict] = []
+    for bucket, points in buckets.items():
+        if len(points) == 1:
+            result.append(points[0])
+        else:
+            avg: dict = {"timestamp": bucket * FIVE_MIN_MS}
+            all_keys = set()
+            for p in points:
+                all_keys.update(k for k in p if k != "timestamp")
+            for key in all_keys:
+                vals = [p[key] for p in points if isinstance(p.get(key), (int, float))]
+                if vals:
+                    avg[key] = sum(vals) / len(vals)
+            result.append(avg)
+
+    result.sort(key=lambda p: p["timestamp"])
+    return result
+
+
+if __name__ == "__main__":
+    import uvicorn
+    host = os.getenv("BACKEND_HOST", "0.0.0.0")
+    port = int(os.getenv("BACKEND_PORT", "8000"))
+    print(f"[Server] Starting on {host}:{port}")
+    uvicorn.run(app, host=host, port=port)
