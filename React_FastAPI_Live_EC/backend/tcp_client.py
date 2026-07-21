@@ -1,5 +1,6 @@
 """TCP client for EC towers — mirrors src/lib/tcp.ts logic."""
 
+import math
 import socket
 import asyncio
 from typing import Optional
@@ -296,6 +297,13 @@ def parse_ec_data(raw: str, site_name: str) -> list[dict]:
             deduped.append(avg_point)
 
     deduped.sort(key=lambda p: p["timestamp"])
+    
+    # Remove NaN values (JSON doesn't support NaN)
+    for point in deduped:
+        for k, v in list(point.items()):
+            if isinstance(v, float) and math.isnan(v):
+                del point[k]
+    
     return deduped
 
 

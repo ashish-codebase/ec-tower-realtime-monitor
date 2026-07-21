@@ -8,7 +8,12 @@ import redis
 
 
 def _get_redis_client():
-    url = os.getenv("REDIS_URL", "redis://default:ya6pISMycFz4pyfHX9NCFBecD7SCtNYA@consonant-carved-profit-84866.db.redis.io:10685")
+    url = os.getenv("REDIS_URL")
+    if not url:
+        raise RuntimeError(
+            "REDIS_URL environment variable is required. "
+            "Set it in .env (see .env.example)."
+        )
     return redis.from_url(url, decode_responses=True, socket_connect_timeout=5)
 
 

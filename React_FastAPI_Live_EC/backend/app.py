@@ -2,14 +2,15 @@
 
 import asyncio
 import csv
+import math
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Optional
 
 from dotenv import load_dotenv
-# Load .env from project root (parent of backend/)
-load_dotenv(dotenv_path=Path(__file__).parent.parent / ".env")
+# Load .env from backend directory
+load_dotenv(dotenv_path=Path(__file__).parent / ".env")
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -31,6 +32,17 @@ from sensor_settings import get_settings
 
 _fetch_in_progress = False
 _background_task: Optional[asyncio.Task] = None
+
+
+def clean_data(obj):
+    """Remove NaN values from data (JSON doesn't support NaN)."""
+    if isinstance(obj, dict):
+        return {k: clean_data(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [clean_data(i) for i in obj]
+    elif isinstance(obj, float) and math.isnan(obj):
+        return None
+    return obj
 
 
 # ── Config ─────────────────────────────────────────────────────────────
@@ -221,6 +233,9 @@ async def get_data(site_ip: str, resample_5min: bool = Query(default=False)):
     # Resample to 5-min if requested
     if resample_5min and len(data) > 1:
         data = _resample_to_5min(data)
+
+    # Clean NaN values (JSON doesn't support NaN)
+    data = clean_data(data)
 
     return data
 
