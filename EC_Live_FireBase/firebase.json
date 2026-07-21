@@ -1,0 +1,17 @@
+{
+  "hosting": {
+	"site": "ec-live-monitor-ucrc",
+    "public": "public",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  }
+}

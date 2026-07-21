@@ -60,8 +60,12 @@ async def fetch_tower_data(ip: str, site_name: str = "unknown") -> list[dict]:
                     break
                 chunks_received += 1
                 text = chunk.decode("utf-8", errors="replace")
-                print(f"[TCP] Chunk {chunks_received}: {len(text)} chars, first 100: {text[:100].replace(chr(10), ' ')}")
                 lines = text.split("\n")
+                substring = "DATADAQM"
+                matches = [line for line in lines if substring in line]
+                if len(matches)>0:
+                    str_build = text[:100].replace(chr(10), ' ')
+                    print(f"[TCP] {site_name}: Chunk length: {len(text)} chars, first 100: {str_build}")
                 for line in lines:
                     parts = line.strip().split("\t")
                     if parts[0] == "DATADAQM":

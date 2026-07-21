@@ -59,7 +59,7 @@ def load_sites_from_csv() -> list[dict]:
 # ── Fetch orchestrator ────────────────────────────────────────────────
 
 async def _perform_fetch():
-    """Fetch data from all configured towers."""
+    """Fetch data from all configured towers in parallel."""
     global _fetch_in_progress
     try:
         ensure_data_dir()
@@ -68,35 +68,64 @@ async def _perform_fetch():
             print("[Fetch] No sites configured")
             return
 
-        results = []
-        for site in sites:
-            try:
-                print(f"[Fetch] Fetching {site['name']} ({site['ip']})...")
-                data = await fetch_tower_data(site["ip"], site["name"])
-                print(f"[Fetch] Got {len(data)} points from {site['name']}")
+        # Fetch all sites concurrently (semaphore limits to MAX_CONCURRENT=10)
+        tasks = [fetch_tower_data(site["ip"], site["name"]) for site in sites]
+        results_list = await asyncio.gather(*tasks, return_exceptions=True)
 
+        async def _store_site(site: dict, data: list) -> dict:
+            """Store fetched data for a single site (async-safe)."""
+            try:
                 if data:
-                    await append_site_data_to_redis(site["ip"], data)
+                    append_site_data_to_redis(site["ip"], data)
                     append_site_data(site["ip"], data)
-                    # Register columns from this tower's data
-                    if data and len(data) > 0:
+                    if len(data) > 0:
                         cols = [k for k in data[0].keys() if k not in ("timestamp",)]
                         column_registry.add_tower_columns(site["name"], cols)
-
-                results.append({
+                return {
                     "name": site["name"],
                     "ip": site["ip"],
                     "status": "ok",
-                    "count": len(data),
-                })
+                    "count": len(data) if data else 0,
+                }
             except Exception as e:
-                print(f"[Fetch] Error for {site['name']}: {e}")
-                results.append({
+                print(f"[Fetch] Store error for {site['name']}: {e}")
+                return {
                     "name": site["name"],
                     "ip": site["ip"],
                     "status": "error",
                     "error": str(e),
-                })
+                }
+
+        # Store each site's data concurrently to avoid blocking on slow I/O
+        store_coros = [
+            _store_site(site, result)
+            for site, result in zip(sites, results_list)
+            if isinstance(result, list)
+        ]
+        # For failed sites, produce error dicts synchronously
+        error_dicts = [
+            {
+                "name": site["name"],
+                "ip": site["ip"],
+                "status": "error",
+                "error": str(result),
+            }
+            for site, result in zip(sites, results_list)
+            if isinstance(result, Exception)
+        ]
+
+        # Await only the successful stores
+        store_results = await asyncio.gather(
+            *store_coros,
+            return_exceptions=True,
+        )
+        results = []
+        for r in store_results:
+            if isinstance(r, Exception):
+                print(f"[Fetch] Store failed: {r}")
+            else:
+                results.append(r)
+        results += error_dicts
 
         ok = sum(1 for r in results if r["status"] == "ok")
         fail = len(results) - ok

@@ -32,20 +32,8 @@ export async function clearCache(siteIp?: string): Promise<{ status: string }> {
   return res.json();
 }
 
-export async function getColumns(): Promise<{ allColumns: string[]; towerColumns: Record<string, string[]> }> {
-  const res = await fetch(`${API_BASE}/columns`);
-  if (!res.ok) throw new Error('Failed to load columns');
-  return res.json();
-}
-
 export async function getSensorGroups(): Promise<{ sensorGroups: Array<{ name: string; keys: string[] }>; allDaqmColumns: string[] }> {
   const res = await fetch(`${API_BASE}/sensor-groups`);
   if (!res.ok) throw new Error('Failed to load sensor groups');
-  return res.json();
-}
-
-export async function healthCheck(): Promise<{ status: string }> {
-  const res = await fetch(`${API_BASE}/health`);
-  if (!res.ok) throw new Error('Health check failed');
   return res.json();
 }

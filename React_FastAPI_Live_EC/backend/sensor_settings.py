@@ -50,9 +50,10 @@ def get_settings() -> Settings:
     return Settings(
         sensor_groups=[
             SensorGroupSetting("Wind (U, V, W)", ["U", "V", "W"]),
-            SensorGroupSetting("Air Temperature (TA)", ["TA_1_1_1"]),
+            SensorGroupSetting("Air Temperature (TA)", ["TA_1_1_1", "TC_1_1_1", "TEMP", "TCNR4_C_1_1_1"]),
             SensorGroupSetting("Relative Humidity (RH)", ["RH_1_1_1"]),
-            SensorGroupSetting("Soil Temperature (TS_*)", ["TS_1_1_1", "TS_2_1_1", "TS_3_1_1", "TS_4_1_1", "TS_5_1_1", "TS_6_1_1", "TS_7_1_1", "TS_8_1_1", "TS_9_1_1"]),
+            SensorGroupSetting("Soil Temperature (5 cm)", ["TS_1_1_1", "TS_2_1_1", "TS_3_1_1", "TS_7_1_1", "TS_8_1_1", "TS_9_1_1"]),
+            SensorGroupSetting("Soil Temperature (20-60 cm): Vertical Profile", ["TS_4_1_1", "TS_5_1_1", "TS_6_1_1"]),
             SensorGroupSetting("Thermistor (THERMISTOR_*)", ["THERMISTOR_1_1_1"]),
             SensorGroupSetting("Soil Moisture (SWC_*)", ["SWC_1_1_1", "SWC_2_1_1", "SWC_3_1_1", "SWC_4_1_1", "SWC_5_1_1", "SWC_6_1_1"]),
             SensorGroupSetting("Relay Status", ["Relay_1_1_1", "Relay_2_1_1", "Relay_3_1_1"]),
