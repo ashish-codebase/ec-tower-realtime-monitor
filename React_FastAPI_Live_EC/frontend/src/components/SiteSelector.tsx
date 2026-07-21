@@ -15,20 +15,21 @@ export default function SiteSelector({
 }: Props) {
 	return (
 		<div className="flex flex-wrap gap-3 mb-6">
-			{sites.map((site) => {
-				const isSelected = selected === site.ip;
-				const status = siteStatuses?.[site.ip] || "checking";
+			<div className="flex flex-col gap-3 mb-6">
+				{sites.map((site) => {
+					const isSelected = selected === site.ip;
+					const status = siteStatuses?.[site.ip] || "checking";
 
-				return (
-					<button
-						key={site.ip}
-						type="button"
-						onClick={() => onChange(site.ip)}
-						disabled={
-							(status === "not-found" || status === "no-data") && !isSelected
-						}
-						className={`
-              flex items-center gap-2 px-4 py-2 rounded-lg select-none transition-all
+					return (
+						<button
+							key={site.ip}
+							type="button"
+							onClick={() => onChange(site.ip)}
+							disabled={
+								(status === "not-found" || status === "no-data") && !isSelected
+							}
+							className={`
+              flex items-center gap-2 px-4 py-2 rounded-lg select-none transition-all w-full justify-start
               ${
 								isSelected
 									? "bg-blue-600 text-white shadow-lg scale-105"
@@ -37,9 +38,9 @@ export default function SiteSelector({
 										: "bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700"
 							}
             `}
-					>
-						<span
-							className={`
+						>
+							<span
+								className={`
                 w-4 h-4 rounded-full border-2 flex-shrink-0
                 ${
 									isSelected
@@ -49,17 +50,18 @@ export default function SiteSelector({
 											: "border-blue-500 bg-transparent"
 								}
               `}
-						/>
-						<span className="text-lg">
-							{status === "live" && "🟢"}
-							{status === "no-data" && "🔴"}
-							{status === "not-found" && "⚪"}
-							{status === "checking" && "🔄"}
-						</span>
-						<span className="text-sm font-medium">{site.name}</span>
-					</button>
-				);
-			})}
+							/>
+							<span className="text-lg flex-shrink-0">
+								{status === "live" && "🟢"}
+								{status === "no-data" && "🔴"}
+								{status === "not-found" && "⚪"}
+								{status === "checking" && "🔄"}
+							</span>
+							<span className="text-sm font-medium truncate">{site.name}</span>
+						</button>
+					);
+				})}
+			</div>
 		</div>
 	);
 }
