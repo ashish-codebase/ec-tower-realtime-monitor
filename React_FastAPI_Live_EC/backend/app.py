@@ -9,21 +9,24 @@ from pathlib import Path
 from typing import Optional
 
 from dotenv import load_dotenv
+
 # Load .env from backend directory
 load_dotenv(dotenv_path=Path(__file__).parent / ".env")
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from tcp_client import fetch_tower_data, PORT
+from tcp_client import fetch_tower_data
 from column_registry import column_registry
-from storage import append_site_data, get_site_data, clear_site_data, ensure_data_dir
-from redis_store import (
+from storage import append_site_data, ensure_data_dir
+from turso_store import (
     append_site_data_to_redis,
     get_site_data_from_redis,
     clear_redis_site,
     clear_all_redis,
+    init_db,
+    close,
 )
 from sensor_settings import get_settings
 
@@ -69,6 +72,7 @@ def load_sites_from_csv() -> list[dict]:
 
 
 # ── Fetch orchestrator ────────────────────────────────────────────────
+
 
 async def _perform_fetch():
     """Fetch data from all configured towers in parallel."""
@@ -151,6 +155,7 @@ async def _perform_fetch():
 
 # ── Pydantic models ───────────────────────────────────────────────────
 
+
 class FetchResult(BaseModel):
     name: str
     ip: str
@@ -161,9 +166,12 @@ class FetchResult(BaseModel):
 
 # ── App ────────────────────────────────────────────────────────────────
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Start background poller on startup."""
+    """Initialize Turso DB on startup, close on shutdown."""
+    # Initialize Turso database schema
+    init_db()
     # Load existing columns from stored data
     ensure_data_dir()
     yield
@@ -171,6 +179,7 @@ async def lifespan(app: FastAPI):
     global _background_task
     if _background_task and not _background_task.done():
         _background_task.cancel()
+    close()
 
 
 app = FastAPI(
@@ -191,6 +200,7 @@ app.add_middleware(
 
 
 # ── Endpoints ──────────────────────────────────────────────────────────
+
 
 @app.get("/api/sites")
 async def get_sites():
@@ -219,13 +229,8 @@ async def get_fetch_status():
 
 @app.get("/api/data/{site_ip}")
 async def get_data(site_ip: str, resample_5min: bool = Query(default=False)):
-    """Get stored data for a site. Falls back to JSON if Redis unavailable."""
-    # Try Redis first
+    """Get stored data for a site from Turso."""
     data = get_site_data_from_redis(site_ip)
-
-    # Fallback to JSON file
-    if data is None or len(data) == 0:
-        data = get_site_data(site_ip)
 
     if data is None:
         data = []
@@ -242,16 +247,12 @@ async def get_data(site_ip: str, resample_5min: bool = Query(default=False)):
 
 @app.post("/api/cache-control/clear")
 async def clear_cache(site_ip: str = Query(default=None)):
-    """Clear cached data. If site_ip provided, clear only that site."""
+    """Clear cached data from Turso."""
     if site_ip:
         clear_redis_site(site_ip)
-        clear_site_data(site_ip)
         return {"status": "cleared", "site": site_ip}
     else:
         clear_all_redis()
-        ensure_data_dir()
-        for f in (Path(__file__).parent.parent / "data").glob("*.json"):
-            f.unlink()
         return {"status": "cleared_all"}
 
 
@@ -303,6 +304,7 @@ async def health_check():
 
 # ── Resample helper (mirrors src/lib/resample.ts) ─────────────────────
 
+
 def _resample_to_5min(data: list[dict]) -> list[dict]:
     """Downsample data to 5-minute intervals by averaging."""
     FIVE_MIN_MS = 5 * 60 * 1000
@@ -338,6 +340,7 @@ def _resample_to_5min(data: list[dict]) -> list[dict]:
 
 if __name__ == "__main__":
     import uvicorn
+
     host = os.getenv("BACKEND_HOST", "0.0.0.0")
     port = int(os.getenv("BACKEND_PORT", "8000"))
     print(f"[Server] Starting on {host}:{port}")
